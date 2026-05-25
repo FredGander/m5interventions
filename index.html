@@ -167,38 +167,7 @@ function App(){
   },[]);
 
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"})},[msgs]);
-  // Sauvegarder les positions après chaque rendu (avant le prochain)
-  useEffect(()=>{
-    Object.entries(rowRefs.current).forEach(([id,el])=>{
-      if(el)prevPositions.current[id]=el.getBoundingClientRect().top;
-    });
-  });
 
-  // FLIP animation : déplacer les lignes depuis leur ancienne position
-  const {useLayoutEffect}=React;
-  useLayoutEffect(()=>{
-    if(!anyFilterActive)return;
-    setAnimKey(k=>k+1);
-    const DURATION=520;
-    Object.entries(rowRefs.current).forEach(([id,el])=>{
-      if(!el||prevPositions.current[id]===undefined)return;
-      const newTop=el.getBoundingClientRect().top;
-      const delta=prevPositions.current[id]-newTop;
-      if(Math.abs(delta)<2)return;
-      el.style.transition='none';
-      el.style.transform=`translateY(${delta}px)`;
-      el.style.opacity='0.4';
-      el.style.zIndex='5';
-      requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{
-          el.style.transition=`transform ${DURATION}ms cubic-bezier(0.34,1.2,0.64,1), opacity ${DURATION*0.6}ms ease`;
-          el.style.transform='';
-          el.style.opacity='';
-          setTimeout(()=>{if(el){el.style.transition='';el.style.zIndex='';}},DURATION+50);
-        });
-      });
-    });
-  },[dynamicRanks,paged]);
 
   const medecins=useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=="nan"))].sort(),[data]);
   const secteurs=useMemo(()=>{
@@ -254,6 +223,37 @@ function App(){
   const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
   const paged=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
   const activeFiltersCount=(filterM!=="all"?1:0)+(filterT!=="all"?1:0)+(filterA!=="all"?1:0)+(filterSecteur!=="all"?1:0)+(search?1:0);
+
+  // Sauvegarder les positions APRÈS chaque rendu (pour le FLIP suivant)
+  React.useEffect(()=>{
+    Object.entries(rowRefs.current).forEach(([id,el])=>{
+      if(el)prevPositions.current[id]=el.getBoundingClientRect().top;
+    });
+  });
+
+  // FLIP : animer les lignes depuis leur ancienne position vers la nouvelle
+  React.useLayoutEffect(()=>{
+    if(!anyFilterActive)return;
+    setAnimKey(k=>k+1);
+    const DURATION=500;
+    Object.entries(rowRefs.current).forEach(([id,el])=>{
+      if(!el||prevPositions.current[id]===undefined)return;
+      const newTop=el.getBoundingClientRect().top;
+      const delta=prevPositions.current[id]-newTop;
+      if(Math.abs(delta)<2)return;
+      el.style.transition='none';
+      el.style.transform=`translateY(${delta}px)`;
+      el.style.opacity='0.35';
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          el.style.transition=`transform ${DURATION}ms cubic-bezier(0.34,1.15,0.64,1), opacity ${DURATION*0.55}ms ease`;
+          el.style.transform='';
+          el.style.opacity='';
+          setTimeout(()=>{ if(el){el.style.transition='';el.style.zIndex='';} },DURATION+60);
+        });
+      });
+    });
+  },[dynamicRanks,paged]);
 
   const handleSort=(key)=>{if(key==="_action")return;if(sortKey===key)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortKey(key);setSortDir("asc");}setPage(1);};
   const resetFilters=()=>{setFilterM("all");setFilterT("all");setFilterA("all");setFilterSecteur("all");setSearch("");setPage(1);};
