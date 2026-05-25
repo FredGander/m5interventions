@@ -132,21 +132,27 @@ function App(){
   const ranks=anyF?buildRanks(base):null;
 
   const dir=sd==='asc'?1:-1;
-  const sorted=[...base.map((row,i)=>({
+  const enriched=base.map((row,i)=>({
     row,
     r1:ranks?ranks[i].r1:(row.rang1||null),
     r2:ranks?ranks[i].r2:(row.rang2||null),
-  }))].sort((a,b)=>{
-    if(sk==='rang1'||sk==='rang2'){
-      const av=sk==='rang1'?a.r1:a.r2;
-      const bv=sk==='rang1'?b.r1:b.r2;
-      if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;
-      return(av-bv)*dir;
-    }
-    const av=a.row[sk]??'',bv=b.row[sk]??'';
-    if(typeof av==='string'&&typeof bv==='string')return av.localeCompare(bv,'fr')*dir;
-    return((Number(av)||0)-(Number(bv)||0))*dir;
-  });
+  }));
+
+  let sorted;
+  if(sk==='rang1'||sk==='rang2'){
+    // Séparer les lignes avec et sans rang — évite tout problème de comparaison null
+    const key=sk==='rang1'?'r1':'r2';
+    const withRank=enriched.filter(e=>e[key]>0);
+    const noRank=enriched.filter(e=>!(e[key]>0));
+    withRank.sort((a,b)=>(a[key]-b[key])*dir);
+    sorted=[...withRank,...noRank];
+  } else {
+    sorted=[...enriched].sort((a,b)=>{
+      const av=a.row[sk]??'',bv=b.row[sk]??'';
+      if(typeof av==='string'&&typeof bv==='string')return av.localeCompare(bv,'fr')*dir;
+      return((Number(av)||0)-(Number(bv)||0))*dir;
+    });
+  }
 
   const totalP=Math.max(1,Math.ceil(sorted.length/PAGE));
   const paged=sorted.slice((page-1)*PAGE,page*PAGE);
@@ -201,7 +207,7 @@ function App(){
         </nav>
         <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
           <Av name="Elise Moreau" sz={26}/>
-          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v1.9</div></div>
+          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.1</div></div>
         </div>
       </div>}
 
