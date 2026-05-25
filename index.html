@@ -26,7 +26,7 @@ select,input,button,textarea{font-family:inherit}
 </head>
 <body><div id="root"></div>
 <script type="text/babel">
-const {useState,useEffect,useMemo}=React;
+const {useState,useEffect,useMemo,useRef}=React;
 const PAGE=50;
 
 const SECS={"01":"Agriculture","02":"Agriculture","03":"Agriculture","05":"Ind.extract.","06":"Ind.extract.","07":"Ind.extract.","08":"Ind.extract.","09":"Ind.extract.","10":"Ind.alim.","11":"Ind.alim.","12":"Ind.alim.","13":"Textile","14":"Textile","15":"Cuir","16":"Bois","17":"Papier","18":"Imprimerie","19":"Pétrole","20":"Chimie","21":"Pharma","22":"Plastique","23":"Minéraux","24":"Métallurgie","25":"Métal","26":"Électronique","27":"Électrique","28":"Machines","29":"Auto","30":"Transport","31":"Mobilier","32":"Manuf.","33":"Réparation","35":"Énergie","36":"Eau","37":"Eau","38":"Eau","39":"Eau","41":"Construction","42":"Construction","43":"Construction","45":"Commerce auto","46":"Commerce gros","47":"Commerce détail","49":"Transport","50":"Transport","51":"Transport","52":"Transport","53":"Transport","55":"Hôtellerie","56":"Restauration","58":"Édition","59":"Audiovisuel","60":"Audiovisuel","61":"Télécoms","62":"Informatique","63":"Serv.info","64":"Finance","65":"Assurance","66":"Finance","68":"Immobilier","69":"Juridique","70":"Conseil","71":"Ingénierie","72":"Recherche","73":"Pub","74":"Spécialisé","75":"Vétérinaire","77":"Location","78":"RH","79":"Tourisme","80":"Sécurité","81":"Bâtiment","82":"Admin.serv.","84":"Admin.pub.","85":"Enseignement","86":"Santé","87":"Médico-soc.","88":"Action soc.","90":"Arts","91":"Arts","92":"Jeux","93":"Sports","94":"Associations","95":"Réparation","96":"Autres serv.","97":"Ménages","98":"Ménages"};
@@ -158,7 +158,7 @@ function App(){
   },[enriched,sk,sd]);
 
   const totalP=Math.max(1,Math.ceil(sorted.length/PAGE));
-  const paged=useMemo(()=>sorted.slice((page-1)*PAGE,page*PAGE),[sorted,page]);
+  const paged=sorted.slice((page-1)*PAGE,page*PAGE);
   const nF=(fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
 
   const doSort=k=>{if(k==='_act')return;setSd(k===sk?(sd==='asc'?'desc':'asc'):'asc');setSk(k);setPage(1);};
@@ -332,7 +332,6 @@ function App(){
     </div>
   );
 }
-const {useRef}=React;
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
