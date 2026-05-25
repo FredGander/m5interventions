@@ -26,6 +26,7 @@ body{font-family:'DM Sans','Segoe UI',sans-serif;overflow:hidden}
 @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 .nav-btn:hover{background:rgba(255,255,255,0.07)!important;color:rgba(255,255,255,0.85)!important}
 .row-hover:hover{background:#EEF4FF!important;cursor:pointer}
+.row-hover{will-change:transform;}
 .btn-create:hover{background:#F0FDF4!important;border-color:#86EFAC!important;color:#15803D!important}
 .th{padding:8px 8px;font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;user-select:none;display:flex;align-items:center;white-space:nowrap;border-right:1px solid #F1F5F9}
 .th:last-child{border-right:none}
@@ -100,24 +101,27 @@ function parseDate(s){
 function computeRanks(subset){
   const r1=[],r2=[];
   subset.forEach(r=>{
+    const eff=Number(r.effectif)||0;
     const dateRef=r.dateFE?parseDate(r.dateFE):parseDate(r.adhesion);
-    if(!dateRef||r.effectif<=0)return;
-    if(r.effectif>2)r1.push({...r,_dateRef:dateRef});
-    else if(r.effectif===1||r.effectif===2)r2.push({...r,_dateRef:dateRef});
+    if(!dateRef||eff<=0)return;
+    const row={...r,effectif:eff,_dateRef:dateRef,_key:String(r.id)};
+    if(eff>2)r1.push(row);
+    else if(eff>=1&&eff<=2)r2.push(row);
   });
   const interleave=(arr)=>{
     const nv=arr.filter(r=>r.anciennete==="Nouvel Adh").sort((a,b)=>b._dateRef-a._dateRef);
     const an=arr.filter(r=>r.anciennete==="Ancien Adh").sort((a,b)=>a._dateRef-b._dateRef);
-    const res=[];let ni=0,ai=0;
+    const out=[];let ni=0,ai=0;
     while(ni<nv.length||ai<an.length){
-      if(ni<nv.length)res.push(nv[ni++]);
-      for(let i=0;i<2&&ai<an.length;i++)res.push(an[ai++]);
+      if(ni<nv.length)out.push(nv[ni++]);
+      if(ai<an.length)out.push(an[ai++]);
+      if(ai<an.length)out.push(an[ai++]);
     }
-    return res;
+    return out;
   };
   const ranks={};
-  interleave(r1).forEach((r,i)=>ranks[r.id]={rang1:i+1,rang2:null});
-  interleave(r2).forEach((r,i)=>ranks[r.id]={rang1:null,rang2:i+1});
+  interleave(r1).forEach((r,idx)=>{ranks[r._key]={rang1:idx+1,rang2:null};});
+  interleave(r2).forEach((r,idx)=>{ranks[r._key]={rang1:null,rang2:idx+1};});
   return ranks;
 }
 
@@ -154,7 +158,8 @@ function App(){
   const [navOpen,setNavOpen]=useState(true);
   const [filterSecteur,setFilterSecteur]=useState('all');
   const [animKey,setAnimKey]=useState(0);
-  const [animatingRows,setAnimatingRows]=useState(new Set());
+  const rowRefs=useRef({});
+  const prevPositions=useRef({});
   const endRef=useRef(null);
 
   useEffect(()=>{
@@ -162,15 +167,38 @@ function App(){
   },[]);
 
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"})},[msgs]);
+  // Sauvegarder les positions après chaque rendu (avant le prochain)
   useEffect(()=>{
+    Object.entries(rowRefs.current).forEach(([id,el])=>{
+      if(el)prevPositions.current[id]=el.getBoundingClientRect().top;
+    });
+  });
+
+  // FLIP animation : déplacer les lignes depuis leur ancienne position
+  const {useLayoutEffect}=React;
+  useLayoutEffect(()=>{
     if(!anyFilterActive)return;
     setAnimKey(k=>k+1);
-    // Marquer les lignes visibles comme animating pour le flash de fond
-    const ids=new Set(filtered.slice(0,PAGE_SIZE).map(r=>r.id));
-    setAnimatingRows(ids);
-    const t=setTimeout(()=>setAnimatingRows(new Set()),800);
-    return()=>clearTimeout(t);
-  },[dynamicRanks]);
+    const DURATION=520;
+    Object.entries(rowRefs.current).forEach(([id,el])=>{
+      if(!el||prevPositions.current[id]===undefined)return;
+      const newTop=el.getBoundingClientRect().top;
+      const delta=prevPositions.current[id]-newTop;
+      if(Math.abs(delta)<2)return;
+      el.style.transition='none';
+      el.style.transform=`translateY(${delta}px)`;
+      el.style.opacity='0.4';
+      el.style.zIndex='5';
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          el.style.transition=`transform ${DURATION}ms cubic-bezier(0.34,1.2,0.64,1), opacity ${DURATION*0.6}ms ease`;
+          el.style.transform='';
+          el.style.opacity='';
+          setTimeout(()=>{if(el){el.style.transition='';el.style.zIndex='';}},DURATION+50);
+        });
+      });
+    });
+  },[dynamicRanks,paged]);
 
   const medecins=useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=="nan"))].sort(),[data]);
   const secteurs=useMemo(()=>{
@@ -204,8 +232,8 @@ function App(){
       // Récupérer la valeur de tri : rang dynamique si dispo, sinon rang global
       const getVal=(r)=>{
         if(emptyLast&&dynamicRanks){
-          if(sortKey==="rang1")return dynamicRanks[r.id]?.rang1??null;
-          if(sortKey==="rang2")return dynamicRanks[r.id]?.rang2??null;
+          if(sortKey==="rang1")return dynamicRanks[String(r.id)]?.rang1??null;
+          if(sortKey==="rang2")return dynamicRanks[String(r.id)]?.rang2??null;
         }
         return r[sortKey];
       };
@@ -264,8 +292,8 @@ function App(){
 
   const renderCell=(row,col,done)=>{
     switch(col.key){
-      case "rang1":{const v=dynamicRanks?dynamicRanks[row.id]?.rang1:row.rang1;return v?<span key={`r1-${animKey}-${v}`} className="rank-badge" style={{fontWeight:700,color:"#1D4ED8",background:"#DBEAFE",borderRadius:5,padding:"2px 8px",fontSize:11,animationDelay:`${Math.min(v*18,600)}ms`,display:"inline-block"}}>{v}</span>:<span className="rank-empty" key={`r1e-${animKey}-${row.id}`} style={{color:"#CBD5E1"}}>—</span>;}
-      case "rang2":{const v=dynamicRanks?dynamicRanks[row.id]?.rang2:row.rang2;return v?<span key={`r2-${animKey}-${v}`} className="rank-badge" style={{fontWeight:700,color:"#9D174D",background:"#FCE7F3",borderRadius:5,padding:"2px 8px",fontSize:11,animationDelay:`${Math.min(v*18,600)}ms`,display:"inline-block"}}>{v}</span>:<span className="rank-empty" key={`r2e-${animKey}-${row.id}`} style={{color:"#CBD5E1"}}>—</span>;}
+      case "rang1":{const v=dynamicRanks?dynamicRanks[String(row.id)]?.rang1:row.rang1;return v?<span key={`r1-${animKey}-${v}`} className="rank-badge" style={{fontWeight:700,color:"#1D4ED8",background:"#DBEAFE",borderRadius:5,padding:"2px 8px",fontSize:11,animationDelay:`${Math.min(v*18,600)}ms`,display:"inline-block"}}>{v}</span>:<span className="rank-empty" key={`r1e-${animKey}-${row.id}`} style={{color:"#CBD5E1"}}>—</span>;}
+      case "rang2":{const v=dynamicRanks?dynamicRanks[String(row.id)]?.rang2:row.rang2;return v?<span key={`r2-${animKey}-${v}`} className="rank-badge" style={{fontWeight:700,color:"#9D174D",background:"#FCE7F3",borderRadius:5,padding:"2px 8px",fontSize:11,animationDelay:`${Math.min(v*18,600)}ms`,display:"inline-block"}}>{v}</span>:<span className="rank-empty" key={`r2e-${animKey}-${row.id}`} style={{color:"#CBD5E1"}}>—</span>;}
       case "adherent": return(
         <div style={{minWidth:0}}>
           <div style={{fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row.adherent}</div>
@@ -419,7 +447,7 @@ function App(){
                 ):paged.map((row,idx)=>{
                   const done=created.has(row.id);
                   return(
-                    <div key={row.id||idx} className={`row-hover${animatingRows.has(row.id)?" row-animating":""}`} onClick={()=>openAI(row)} style={{display:"flex",borderBottom:"1px solid #F1F5F9",background:idx%2===0?"white":"#FAFBFC",animationDelay:`${idx*12}ms`,animationFillMode:"both"}}>
+                    <div key={String(row.id)} ref={el=>{if(el)rowRefs.current[String(row.id)]=el;else delete rowRefs.current[String(row.id)];}} className="row-hover" onClick={()=>openAI(row)} style={{display:"flex",borderBottom:"1px solid #F1F5F9",background:idx%2===0?"white":"#FAFBFC",position:"relative"}}>
                       {COLS.map(col=>(
                         <div key={col.key} className="td" style={{width:col.width,minWidth:col.width,justifyContent:col.align==="center"?"center":"flex-start"}} onClick={col.key==="_action"?e=>e.stopPropagation():undefined}>
                           {renderCell(row,col,done)}
