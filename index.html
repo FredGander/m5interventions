@@ -50,7 +50,6 @@ const COLS=[
   {label:"Anc.",      key:"anciennete",width:80,  align:"center"},
   {label:"Territoire",key:"territoire",width:110, align:"left"},
   {label:"Intervenant",key:"intervenant",width:140,align:"left"},
-  {label:"Priorité",  key:"priorite",  width:80,  align:"center"},
   {label:"Prio 1-2",  key:"rang2",     width:72,  align:"center"},
   {label:"Prio >2",   key:"rang1",     width:72,  align:"center"},
   {label:"Action",    key:"_action",   width:120, align:"center"},
@@ -110,10 +109,19 @@ function App(){
     if(filterA!=="all")d=d.filter(r=>r.anciennete===filterA);
     if(search.trim()){const q=search.toLowerCase();d=d.filter(r=>r.adherent?.toLowerCase().includes(q)||r.medecin?.toLowerCase().includes(q)||r.territoire?.toLowerCase().includes(q)||r.naf?.toLowerCase().includes(q)||r.intervenant?.toLowerCase().includes(q));}
     const dir=sortDir==="asc"?1:-1;
+    const emptyLast=["rang1","rang2"].includes(sortKey);
     return [...d].sort((a,b)=>{
-      const av=a[sortKey]??0,bv=b[sortKey]??0;
-      if(typeof av==="string")return av.localeCompare(bv,"fr")*dir;
-      return(av-bv)*dir;
+      const av=a[sortKey],bv=b[sortKey];
+      if(emptyLast){
+        const ae=!av||av===0,be=!bv||bv===0;
+        if(ae&&be)return 0;
+        if(ae)return 1;
+        if(be)return -1;
+        return(av-bv)*dir;
+      }
+      const avv=av??0,bvv=bv??0;
+      if(typeof avv==="string")return avv.localeCompare(bvv,"fr")*dir;
+      return(avv-bvv)*dir;
     });
   },[data,filterM,filterT,filterP,filterA,search,sortKey,sortDir]);
 
