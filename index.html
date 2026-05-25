@@ -38,16 +38,16 @@ const pDate=s=>{if(!s)return 0;const p=s.split('/');return p.length===3?new Date
 
 function calcRanks(rows){
   const r1=[],r2=[];
-  rows.forEach(r=>{
-    const eff=Number(r.effectif)||0;
-    const dt=r.dateFE?pDate(r.dateFE):pDate(r.adhesion);
+  rows.forEach(row=>{
+    const eff=Number(row.effectif)||0;
+    const dt=row.dateFE?pDate(row.dateFE):pDate(row.adhesion);
     if(!dt||eff<=0)return;
-    const it={id:r.id,anciennete:r.anciennete,eff,dt};
-    if(eff>2)r1.push(it); else if(eff>=1&&eff<=2)r2.push(it);
+    const item={_row:row,anc:row.anciennete,dt};
+    if(eff>2)r1.push(item); else if(eff>=1&&eff<=2)r2.push(item);
   });
   const mix=arr=>{
-    const nv=arr.filter(r=>r.anciennete==='Nouvel Adh').sort((a,b)=>b.dt-a.dt);
-    const an=arr.filter(r=>r.anciennete==='Ancien Adh').sort((a,b)=>a.dt-b.dt);
+    const nv=arr.filter(x=>x.anc==='Nouvel Adh').sort((a,b)=>b.dt-a.dt);
+    const an=arr.filter(x=>x.anc==='Ancien Adh').sort((a,b)=>a.dt-b.dt);
     const out=[];let ni=0,ai=0;
     while(ni<nv.length||ai<an.length){
       if(ni<nv.length)out.push(nv[ni++]);
@@ -56,9 +56,9 @@ function calcRanks(rows){
     }
     return out;
   };
-  const m={};
-  mix(r1).forEach((r,i)=>{m[String(r.id)]={r1:i+1,r2:null};});
-  mix(r2).forEach((r,i)=>{m[String(r.id)]={r1:null,r2:i+1};});
+  const m=new Map();
+  mix(r1).forEach((x,idx)=>m.set(x._row,{r1:idx+1,r2:null}));
+  mix(r2).forEach((x,idx)=>m.set(x._row,{r1:null,r2:idx+1}));
   return m;
 }
 
@@ -137,7 +137,7 @@ function App(){
   const dir=sd==='asc'?1:-1;
   const isRk=sk==='rang1'||sk==='rang2';
   const getV=r=>{
-    if(isRk){const e=dr?dr[String(r.id)]:null;return e?(sk==='rang1'?e.r1:e.r2):(r[sk]||null);}
+    if(isRk){const e=dr?dr.get(r):null;return e?(sk==='rang1'?e.r1:e.r2):(r[sk]||null);}
     return r[sk]??'';
   };
   let rows=base;
@@ -191,7 +191,7 @@ function App(){
     if(k==='territoire')return <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.territoire||'—'}</span>;
     if(k==='intervenant')return <div style={{display:'flex',alignItems:'center',gap:5,minWidth:0}}><Av name={row.intervenant} sz={18}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:11,color:'#64748B'}}>{row.intervenant||'—'}</span></div>;
     if(k==='rang1'||k==='rang2'){
-      const e=dr?dr[String(row.id)]:null;
+      const e=dr?dr.get(row):null;
       const v=e?(k==='rang1'?e.r1:e.r2):(row[k]||null);
       const color=k==='rang1'?'#1D4ED8':'#9D174D';
       const bg=k==='rang1'?'#DBEAFE':'#FCE7F3';
