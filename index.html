@@ -117,56 +117,52 @@ function App() {
 
   useEffect(() => { endRef.current?.scrollIntoView({behavior:'smooth'}); }, [msgs]);
 
-  // ── Filter ──
-  const anyF = fM!=='all' || fT!=='all' || fA!=='all' || fS!=='all' || !!search.trim();
-  let base = data;
-  if (fM!=='all') base = base.filter(r => r.medecin===fM);
-  if (fT!=='all') base = base.filter(r => r.territoire===fT);
-  if (fA!=='all') base = base.filter(r => r.anciennete===fA);
-  if (fS!=='all') base = base.filter(r => sec(r.nafCode)===fS);
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    base = base.filter(r => (r.adherent||'').toLowerCase().includes(q) || (r.medecin||'').toLowerCase().includes(q) || (r.territoire||'').toLowerCase().includes(q) || (r.naf||'').toLowerCase().includes(q));
-  }
+  // ── Unique lists (depend only on data) ──
+  const meds = React.useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=='nan'))].sort(),[data]);
+  const ters  = React.useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=='nan'))].sort(),[data]);
+  const secs  = React.useMemo(()=>[...new Set(data.map(r=>sec(r.nafCode)).filter(Boolean))].sort(),[data]);
 
-  // ── Compute dynamic ranks ──
-  const ranks = anyF ? buildRanks(base) : null;
+  // ── All computation in one memo ──
+  const computed = React.useMemo(() => {
+    const anyF = fM!=='all' || fT!=='all' || fA!=='all' || fS!=='all' || !!search.trim();
+    let base = data;
+    if (fM!=='all') base = base.filter(r => r.medecin===fM);
+    if (fT!=='all') base = base.filter(r => r.territoire===fT);
+    if (fA!=='all') base = base.filter(r => r.anciennete===fA);
+    if (fS!=='all') base = base.filter(r => sec(r.nafCode)===fS);
+    if (search.trim()) { const q=search.toLowerCase(); base=base.filter(r=>(r.adherent||'').toLowerCase().includes(q)||(r.medecin||'').toLowerCase().includes(q)||(r.territoire||'').toLowerCase().includes(q)||(r.naf||'').toLowerCase().includes(q)); }
 
-  // ── Build sortable rows with pre-computed rank values ──
-  const sortable = base.map((row, i) => {
-    const rk = ranks ? ranks[i] : null;
-    return {
+    const ranks = anyF ? buildRanks(base) : null;
+
+    const sortable = base.map((row, i) => ({
       row,
-      r1: rk ? rk.r1 : (row.rang1 || null),
-      r2: rk ? rk.r2 : (row.rang2 || null),
-    };
-  });
+      r1: ranks ? ranks[i].r1 : (row.rang1 || null),
+      r2: ranks ? ranks[i].r2 : (row.rang2 || null),
+    }));
 
-  // ── Sort ──
-  const dir = sd==='asc' ? 1 : -1;
-  sortable.sort((a, b) => {
-    if (sk==='rang1' || sk==='rang2') {
-      const av = sk==='rang1' ? a.r1 : a.r2;
-      const bv = sk==='rang1' ? b.r1 : b.r2;
-      if (!av && !bv) return 0;
-      if (!av) return 1;
-      if (!bv) return -1;
-      return (av - bv) * dir;
-    }
-    const av = a.row[sk] ?? '';
-    const bv = b.row[sk] ?? '';
-    if (typeof av==='string' && typeof bv==='string') return av.localeCompare(bv,'fr') * dir;
-    return ((Number(av)||0) - (Number(bv)||0)) * dir;
-  });
+    const dir = sd==='asc' ? 1 : -1;
+    sortable.sort((a, b) => {
+      if (sk==='rang1' || sk==='rang2') {
+        const av = sk==='rang1' ? a.r1 : a.r2;
+        const bv = sk==='rang1' ? b.r1 : b.r2;
+        if (!av && !bv) return 0;
+        if (!av) return 1;
+        if (!bv) return -1;
+        return (av - bv) * dir;
+      }
+      const av = a.row[sk] ?? '';
+      const bv = b.row[sk] ?? '';
+      if (typeof av==='string' && typeof bv==='string') return av.localeCompare(bv,'fr') * dir;
+      return ((Number(av)||0) - (Number(bv)||0)) * dir;
+    });
 
+    return {sortable, anyF};
+  }, [data, fM, fT, fA, fS, search, sk, sd]);
+
+  const {sortable, anyF} = computed;
   const totalP = Math.max(1, Math.ceil(sortable.length / PAGE));
   const paged  = sortable.slice((page-1)*PAGE, page*PAGE);
   const nF = (fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
-
-  // ── Unique lists for selects ──
-  const meds = [...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=='nan'))].sort();
-  const ters  = [...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=='nan'))].sort();
-  const secs  = [...new Set(data.map(r=>sec(r.nafCode)).filter(Boolean))].sort();
 
   const doSort = k => {
     if (k==='_act') return;
@@ -231,7 +227,7 @@ function App() {
         </nav>
         <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
           <Av name="Elise Moreau" sz={26}/>
-          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin</div></div>
+          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin</div></div><div style={{color:'rgba(255,255,255,.2)',fontSize:9,marginTop:4}}>v1.8</div></div>
         </div>
       </div>}
 
