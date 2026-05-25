@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Medtra5 — Priorisation des interventions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans','Segoe UI',sans-serif;overflow:hidden}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px}
+::-webkit-scrollbar-track{background:transparent}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.nav-btn:hover{background:rgba(255,255,255,0.07)!important;color:rgba(255,255,255,0.85)!important}
+.row-hover:hover{background:#F0F5FF!important}
+.btn-create:hover{background:#F8FAFF!important;border-color:#BFDBFE!important;color:#1D4ED8!important}
+.spin{animation:spin 1s linear infinite}
+.ai-panel{animation:slideIn 0.2s ease-out}
+input::placeholder{color:rgba(255,255,255,0.35)}
+textarea::placeholder{color:#94A3B8}
+select{cursor:pointer}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useRef,useEffect}=React;
+
+const DATA=[
+  {id:1,type:"Action primaire",derniere:"29/04/2026",echeance:"03/05/2026",statut:true,adherent:"MAISON B & T",codeAdh:"71001",effectif:7,medecin:"FARCIS Mathieu",territoire:"MAUGES NORD",anciennete:"Nouvel Adh",intervenant:"",priorite:1,naf:"Boulangerie-pâtisserie"},
+  {id:2,type:"FE",derniere:"15/03/2025",echeance:"07/05/2026",statut:true,adherent:"AMBULANCES BIDET",codeAdh:"86001",effectif:16,medecin:"GABILLAT Nathalie",territoire:"ALLONNES",anciennete:"Ancien Adh",intervenant:"COQUAU Karine",priorite:1,naf:"Ambulances"},
+  {id:3,type:"Projet de service",derniere:"10/09/2024",echeance:"12/05/2026",statut:true,adherent:"CAF MAINE ET LOIRE",codeAdh:"84001",effectif:8,medecin:"FRESNAIS Camille",territoire:"SAUMUR",anciennete:"Ancien Adh",intervenant:"GLETTY Lise",priorite:1,naf:"Services sociaux"},
+  {id:4,type:"Action primaire",derniere:"29/04/2026",echeance:"05/05/2026",statut:true,adherent:"SERGENT MAJOR SAUMUR",codeAdh:"47001",effectif:3,medecin:"BANASZUK Anne-Sophie",territoire:"SAUMUR",anciennete:"Nouvel Adh",intervenant:"",priorite:1,naf:"Commerce habillement"},
+  {id:5,type:"FE",derniere:"20/06/2024",echeance:"18/05/2026",statut:true,adherent:"CPAM MAINE ET LOIRE",codeAdh:"84002",effectif:5,medecin:"BANASZUK Anne-Sophie",territoire:"SAUMUR",anciennete:"Ancien Adh",intervenant:"GLETTY Lise",priorite:1,naf:"Sécurité sociale"},
+  {id:6,type:"FE",derniere:"05/11/2024",echeance:"25/05/2026",statut:true,adherent:"GSF AURIGA",codeAdh:"81001",effectif:46,medecin:"FRESNAIS Camille",territoire:"SAUMUR",anciennete:"Ancien Adh",intervenant:"GLETTY Lise",priorite:2,naf:"Nettoyage industriel"},
+  {id:7,type:"Action primaire",derniere:"28/04/2026",echeance:"06/05/2026",statut:true,adherent:"GARAGE D'OREE",codeAdh:"45001",effectif:3,medecin:"CERTAIN Anne-Isabelle",territoire:"MAUGES OUEST",anciennete:"Nouvel Adh",intervenant:"",priorite:2,naf:"Réparation véhicules"},
+  {id:8,type:"Projet de service",derniere:"12/08/2024",echeance:"02/06/2026",statut:true,adherent:"SAUR SAS",codeAdh:"36001",effectif:85,medecin:"FRESNAIS Camille",territoire:"SAUMUR",anciennete:"Ancien Adh",intervenant:"GLETTY Lise",priorite:2,naf:"Distribution eau"},
+  {id:9,type:"FE",derniere:"14/02/2025",echeance:"10/06/2026",statut:true,adherent:"NEOLAIT",codeAdh:"10001",effectif:3,medecin:"LEBLAY Philippe",territoire:"CHOLET A",anciennete:"Ancien Adh",intervenant:"MARECHAL Séverine",priorite:2,naf:"Alimentation animale"},
+  {id:10,type:"Action primaire",derniere:"21/04/2026",echeance:"07/05/2026",statut:false,adherent:"BRASS'IN DOUE",codeAdh:"56001",effectif:3,medecin:"DAVID Thomas",territoire:"DOUE",anciennete:"Nouvel Adh",intervenant:"",priorite:2,naf:"Restauration"},
+  {id:11,type:"FE",derniere:"08/07/2024",echeance:"18/06/2026",statut:true,adherent:"CREDIT MUTUEL",codeAdh:"64001",effectif:7,medecin:"CERTAIN Anne-Isabelle",territoire:"MAUGES OUEST",anciennete:"Ancien Adh",intervenant:"BLOIS Aurélia",priorite:2,naf:"Banque"},
+  {id:12,type:"Projet de service",derniere:"22/10/2024",echeance:"25/06/2026",statut:true,adherent:"INNODES FOUNTAIN ANJOU",codeAdh:"47002",effectif:3,medecin:"HORY Géraldine",territoire:"CHOLET B",anciennete:"Ancien Adh",intervenant:"MARECHAL Séverine",priorite:2,naf:"Vente automatique"},
+  {id:13,type:"Action primaire",derniere:"21/04/2026",echeance:"08/05/2026",statut:true,adherent:"FABIENNE MACOUIN",codeAdh:"66001",effectif:6,medecin:"LEBLAY Philippe",territoire:"CHOLET A",anciennete:"Nouvel Adh",intervenant:"",priorite:2,naf:"Assurances"},
+  {id:14,type:"FE",derniere:"16/03/2024",echeance:"05/07/2026",statut:true,adherent:"FLEUR D'ARMILLE",codeAdh:"47003",effectif:4,medecin:"FARCIS Mathieu",territoire:"MAUGES NORD",anciennete:"Ancien Adh",intervenant:"BREGEON Béatrice",priorite:3,naf:"Vente à domicile"},
+  {id:15,type:"Projet de service",derniere:"05/05/2024",echeance:"12/07/2026",statut:true,adherent:"ECF",codeAdh:"85001",effectif:4,medecin:"FRESNAIS Camille",territoire:"SAUMUR",anciennete:"Ancien Adh",intervenant:"GLETTY Lise",priorite:3,naf:"Auto-école"},
+  {id:16,type:"Action primaire",derniere:"21/04/2026",echeance:"09/05/2026",statut:false,adherent:"KAGOU",codeAdh:"47004",effectif:4,medecin:"LEMAN Brigitte",territoire:"CHOLET B",anciennete:"Nouvel Adh",intervenant:"",priorite:3,naf:"Supérette"},
+  {id:17,type:"FE",derniere:"19/08/2024",echeance:"20/07/2026",statut:true,adherent:"TVOC",codeAdh:"45002",effectif:3,medecin:"GABILLAT Nathalie",territoire:"ALLONNES",anciennete:"Ancien Adh",intervenant:"COQUAU Karine",priorite:3,naf:"Commerce automobile"},
+  {id:18,type:"Projet de service",derniere:"12/12/2024",echeance:"28/07/2026",statut:true,adherent:"OGEC ST JEAN",codeAdh:"85002",effectif:7,medecin:"ROCCHIETTA Didier",territoire:"MAUGES EST",anciennete:"Ancien Adh",intervenant:"MARECHAL Séverine",priorite:3,naf:"Enseignement primaire"},
+  {id:19,type:"Action primaire",derniere:"20/04/2026",echeance:"10/05/2026",statut:true,adherent:"ATSC",codeAdh:"47005",effectif:4,medecin:"HORY Géraldine",territoire:"CHOLET B",anciennete:"Nouvel Adh",intervenant:"",priorite:3,naf:"Supérette"},
+  {id:20,type:"FE",derniere:"14/02/2024",echeance:"04/08/2026",statut:true,adherent:"BIGEARD",codeAdh:"45003",effectif:4,medecin:"CERTAIN Anne-Isabelle",territoire:"MAUGES NORD",anciennete:"Ancien Adh",intervenant:"BREGEON Béatrice",priorite:3,naf:"Réparation véhicules"},
+];
+
+const PRIO={1:{bg:"#FEE2E2",color:"#B91C1C",label:"Urgent"},2:{bg:"#FEF3C7",color:"#B45309",label:"Prioritaire"},3:{bg:"#DCFCE7",color:"#15803D",label:"Planifié"}};
+const MEDECINS=[...new Set(DATA.map(r=>r.medecin))];
+const TERRITOIRES=[...new Set(DATA.map(r=>r.territoire))];
+
+function Icon({name,size=16,color="currentColor",style={}}) {
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(ref.current&&window.lucide){
+      ref.current.innerHTML='';
+      const icons=window.lucide;
+      const key=name.split('-').map((w,i)=>i===0?w:w[0].toUpperCase()+w.slice(1)).join('');
+      if(icons[key]){
+        const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+        svg.setAttribute("width",size);svg.setAttribute("height",size);
+        svg.setAttribute("viewBox","0 0 24 24");svg.setAttribute("fill","none");
+        svg.setAttribute("stroke",color);svg.setAttribute("stroke-width","2");
+        svg.setAttribute("stroke-linecap","round");svg.setAttribute("stroke-linejoin","round");
+        const [,,children]=icons[key];
+        svg.innerHTML=children.map(([tag,attrs])=>`<${tag} ${Object.entries(attrs).map(([k,v])=>`${k}="${v}"`).join(' ')}/>`).join('');
+        ref.current.appendChild(svg);
+      }
+    }
+  },[name,size,color]);
+  return <span ref={ref} style={{display:"inline-flex",alignItems:"center",...style}}/>;
+}
+
+function Avatar({name,size=26}){
+  const parts=name.split(" ");
+  const init=(parts[0][0]+(parts[1]?.[0]||"")).toUpperCase();
+  const hues=[210,270,160,30,340,190];
+  const h=hues[name.charCodeAt(0)%hues.length];
+  return <div style={{width:size,height:size,borderRadius:"50%",background:`hsl(${h},60%,42%)`,color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.36,fontWeight:700,flexShrink:0}}>{init}</div>;
+}
+
+function App(){
+  const [activeNav,setActiveNav]=useState("Interventions");
+  const [filterM,setFilterM]=useState([]);
+  const [filterT,setFilterT]=useState("all");
+  const [filterP,setFilterP]=useState("all");
+  const [search,setSearch]=useState("");
+  const [showFilters,setShowFilters]=useState(false);
+  const [mdOpen,setMdOpen]=useState(false);
+  const [aiOpen,setAiOpen]=useState(false);
+  const [selRow,setSelRow]=useState(null);
+  const [msgs,setMsgs]=useState([]);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [created,setCreated]=useState(new Set());
+  const [toast,setToast]=useState(null);
+  const [apiKey,setApiKey]=useState(localStorage.getItem("medtra5_apikey")||"");
+  const [showKeyInput,setShowKeyInput]=useState(false);
+  const endRef=useRef(null);
+
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"})},[msgs]);
+
+  const filtered=DATA.filter(r=>{
+    if(filterM.length&&!filterM.includes(r.medecin))return false;
+    if(filterT!=="all"&&r.territoire!==filterT)return false;
+    if(filterP!=="all"&&r.priorite!==+filterP)return false;
+    if(search&&!r.adherent.toLowerCase().includes(search.toLowerCase())&&!r.medecin.toLowerCase().includes(search.toLowerCase()))return false;
+    return true;
+  });
+
+  const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(null),3200)};
+  const createIntervention=(row)=>{setCreated(p=>new Set([...p,row.id]));showToast(`✓ Intervention créée — ${row.adherent}`)};
+
+  const openAI=(row)=>{
+    setSelRow(row);setAiOpen(true);
+    setMsgs([{role:"assistant",content:`Bonjour ! Intervention sélectionnée : ${row.adherent} (${row.naf})\nPriorité ${row.priorite} – ${PRIO[row.priorite].label} | Effectif : ${row.effectif} | Territoire : ${row.territoire}\n\nQue souhaitez-vous savoir ?`}]);
+  };
+
+  const saveKey=(k)=>{setApiKey(k);localStorage.setItem("medtra5_apikey",k);setShowKeyInput(false);showToast("✓ Clé API enregistrée")};
+
+  const send=async()=>{
+    if(!input.trim()||loading)return;
+    if(!apiKey){setShowKeyInput(true);return;}
+    const uMsg={role:"user",content:input};
+    const history=[...msgs,uMsg];
+    setMsgs(history);setInput("");setLoading(true);
+    try{
+      const r=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",max_tokens:800,
+          system:`Assistant IA Medtra5 (médecine du travail). Contexte intervention: ${JSON.stringify(selRow)}. Priorité 1=urgent (nouvel adhérent/<7j), P2=prioritaire, P3=planifié. Répondez en français, de façon concise.`,
+          messages:history.map(m=>({role:m.role,content:m.content})),
+        })
+      });
+      const d=await r.json();
+      setMsgs([...history,{role:"assistant",content:d.content?.[0]?.text||"Erreur de réponse."}]);
+    }catch{setMsgs([...history,{role:"assistant",content:"Erreur de connexion."}]);}
+    setLoading(false);
+  };
+
+  const statsP={1:DATA.filter(r=>r.priorite===1).length,2:DATA.filter(r=>r.priorite===2).length,3:DATA.filter(r=>r.priorite===3).length};
+  const NAV=["Tableau de bord","Adhérents","Travailleurs","RDVs santé travail","Planning","Interventions","PDP","Demandes","Alertes","Ressources","Eval-Risq","Documents","Statistiques"];
+
+  return(
+    <div style={{display:"flex",height:"100vh",overflow:"hidden",fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#EDF1F7"}}>
+      {/* SIDEBAR */}
+      <div style={{width:192,height:"100vh",background:"#0B2040",display:"flex",flexDirection:"column",flexShrink:0}}>
+        <div style={{padding:"14px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:34,height:34,borderRadius:8,background:"#1D6AF5",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" fill="white"/><path d="M5 21c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
+            </div>
+            <div><div style={{color:"white",fontWeight:700,fontSize:16,letterSpacing:"-0.4px"}}>medtra<span style={{color:"#60A5FA"}}>5</span></div><div style={{color:"rgba(255,255,255,0.3)",fontSize:9,letterSpacing:"0.8px",textTransform:"uppercase"}}>Santé au travail</div></div>
+          </div>
+        </div>
+        <nav style={{flex:1,padding:"8px 0",overflowY:"auto"}}>
+          {NAV.map(label=>{
+            const on=label===activeNav;
+            return <button key={label} className="nav-btn" onClick={()=>setActiveNav(label)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"8px 14px",background:on?"rgba(29,106,245,0.18)":"transparent",borderLeft:`3px solid ${on?"#3B82F6":"transparent"}`,color:on?"white":"rgba(255,255,255,0.45)",border:"none",cursor:"pointer",textAlign:"left",fontSize:12,fontWeight:on?600:400}}>{label}</button>;
+          })}
+        </nav>
+        <div style={{padding:"10px 14px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <Avatar name="Elise Moreau" size={28}/>
+            <div><div style={{color:"white",fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:"rgba(255,255,255,0.35)",fontSize:10}}>Médecin</div></div>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{height:52,background:"#0B2040",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0,borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,background:"rgba(255,255,255,0.07)",borderRadius:7,padding:"6px 11px",flex:1,maxWidth:340}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..." style={{background:"none",border:"none",outline:"none",color:"rgba(255,255,255,0.85)",fontSize:13,flex:1,fontFamily:"inherit"}}/>
+          </div>
+          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
+            <button onClick={()=>setShowKeyInput(!showKeyInput)} title="Configurer clé API" style={{background:"none",border:"none",cursor:"pointer",fontSize:18,opacity:0.6}}>⚙️</button>
+            <Avatar name="Elise Moreau" size={30}/>
+          </div>
+        </div>
+
+        {showKeyInput&&(
+          <div style={{background:"#1E3A5F",padding:"10px 16px",display:"flex",alignItems:"center",gap:8,borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
+            <span style={{color:"rgba(255,255,255,0.7)",fontSize:12,whiteSpace:"nowrap"}}>🔑 Clé API Anthropic :</span>
+            <input defaultValue={apiKey} id="apiKeyInput" type="password" placeholder="sk-ant-..." style={{flex:1,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"5px 10px",color:"white",fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+            <button onClick={()=>saveKey(document.getElementById("apiKeyInput").value)} style={{padding:"5px 12px",background:"#1D6AF5",border:"none",borderRadius:6,color:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>Enregistrer</button>
+            <button onClick={()=>setShowKeyInput(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.5)",cursor:"pointer",fontSize:16}}>✕</button>
+          </div>
+        )}
+
+        <div style={{flex:1,overflow:"auto",padding:14}}>
+          <div style={{display:"flex",gap:10,marginBottom:12}}>
+            {[{label:"Total",val:DATA.length,color:"#3B82F6"},{label:"Urgentes P1",val:statsP[1],color:"#B91C1C"},{label:"Prioritaires P2",val:statsP[2],color:"#B45309"},{label:"Planifiées P3",val:statsP[3],color:"#15803D"}].map(({label,val,color})=>(
+              <div key={label} style={{flex:1,background:"white",borderRadius:8,padding:"10px 14px",border:"1px solid #E2E8F0"}}>
+                <div style={{fontSize:11,color:"#94A3B8",marginBottom:3}}>{label}</div>
+                <div style={{fontSize:22,fontWeight:700,color}}>{val}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{background:"white",borderRadius:10,border:"1px solid #E2E8F0",overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",padding:"10px 14px",borderBottom:"1px solid #F1F5F9",gap:8,flexWrap:"wrap"}}>
+              <button onClick={()=>setShowFilters(!showFilters)} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:6,border:`1px solid ${showFilters?"#BFDBFE":"#E2E8F0"}`,background:showFilters?"#EFF6FF":"white",color:showFilters?"#2563EB":"#64748B",cursor:"pointer",fontSize:12}}>
+                ⚙ Filtres
+                {(filterM.length||filterT!=="all"||filterP!=="all")?<span style={{background:"#3B82F6",color:"white",borderRadius:"50%",width:14,height:14,fontSize:9,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,marginLeft:2}}>{(filterM.length>0?1:0)+(filterT!=="all"?1:0)+(filterP!=="all"?1:0)}</span>:null}
+              </button>
+              <span style={{fontSize:12,color:"#94A3B8"}}><b style={{color:"#475569"}}>{filtered.length}</b> / {DATA.length} interventions</span>
+              <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+                <button onClick={()=>{setSelRow(null);setAiOpen(true);setMsgs([]);}} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:7,background:"#1D6AF5",border:"none",color:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>✨ Assistant IA</button>
+              </div>
+            </div>
+
+            {showFilters&&(
+              <div style={{display:"flex",gap:8,padding:"8px 14px",borderBottom:"1px solid #F1F5F9",background:"#FAFBFC",flexWrap:"wrap",alignItems:"center"}}>
+                <select value={filterT} onChange={e=>setFilterT(e.target.value)} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,color:"#475569",background:"white",outline:"none"}}>
+                  <option value="all">Tous territoires</option>
+                  {TERRITOIRES.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+                <select value={filterP} onChange={e=>setFilterP(e.target.value)} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,color:"#475569",background:"white",outline:"none"}}>
+                  <option value="all">Toutes priorités</option>
+                  <option value="1">P1 – Urgent</option>
+                  <option value="2">P2 – Prioritaire</option>
+                  <option value="3">P3 – Planifié</option>
+                </select>
+                <select value={filterM.length===1?filterM[0]:""} onChange={e=>setFilterM(e.target.value?[e.target.value]:[])} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,color:"#475569",background:"white",outline:"none"}}>
+                  <option value="">Tous médecins</option>
+                  {MEDECINS.map(m=><option key={m} value={m}>{m}</option>)}
+                </select>
+                {(filterT!=="all"||filterP!=="all"||filterM.length>0)&&<button onClick={()=>{setFilterT("all");setFilterP("all");setFilterM([])}} style={{padding:"4px 10px",borderRadius:6,border:"1px solid #FECACA",fontSize:12,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>✕ Réinitialiser</button>}
+              </div>
+            )}
+
+            <div style={{overflowX:"auto"}}>
+              <div style={{minWidth:860}}>
+                <div style={{display:"grid",gridTemplateColumns:"110px 80px 80px 28px 1fr 68px 54px 150px 80px 140px",padding:"0 14px",background:"#F8FAFC",borderBottom:"1px solid #E2E8F0"}}>
+                  {["Type","Dernière","Échéance","St","Adhérent","Code adh.","Effectif","Médecin","Priorité",""].map((col,i)=>(
+                    <div key={i} style={{padding:"9px 5px",fontSize:10,fontWeight:700,color:"#94A3B8",textTransform:"uppercase",letterSpacing:"0.6px"}}>{col}</div>
+                  ))}
+                </div>
+                {filtered.length===0?<div style={{padding:40,textAlign:"center",color:"#94A3B8",fontSize:14}}>Aucune intervention trouvée</div>:
+                filtered.map((row,idx)=>{
+                  const pc=PRIO[row.priorite];const done=created.has(row.id);
+                  return <div key={row.id} className="row-hover" style={{display:"grid",gridTemplateColumns:"110px 80px 80px 28px 1fr 68px 54px 150px 80px 140px",padding:"0 14px",borderBottom:"1px solid #F1F5F9",background:idx%2===0?"white":"#FAFBFC",transition:"background 0.1s"}}>
+                    <div style={{padding:"10px 5px",fontSize:12,color:"#374151",display:"flex",alignItems:"center"}}>{row.type}</div>
+                    <div style={{padding:"10px 5px",fontSize:11,color:"#64748B",display:"flex",alignItems:"center"}}>{row.derniere}</div>
+                    <div style={{padding:"10px 5px",fontSize:11,color:"#64748B",display:"flex",alignItems:"center"}}>{row.echeance}</div>
+                    <div style={{padding:"10px 5px",display:"flex",alignItems:"center"}}>{row.statut&&<span style={{color:"#10B981",fontSize:14,fontWeight:700}}>✓</span>}</div>
+                    <div style={{padding:"10px 5px",display:"flex",alignItems:"center",minWidth:0}}>
+                      <div><div style={{fontSize:12,fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:170}}>{row.adherent}</div><div style={{fontSize:10,color:"#94A3B8"}}>{row.naf}</div></div>
+                    </div>
+                    <div style={{padding:"10px 5px",fontSize:11,color:"#64748B",display:"flex",alignItems:"center"}}>{row.codeAdh}</div>
+                    <div style={{padding:"10px 5px",fontSize:11,color:"#64748B",display:"flex",alignItems:"center"}}>{row.effectif}</div>
+                    <div style={{padding:"10px 5px",display:"flex",alignItems:"center",gap:5}}>
+                      <Avatar name={row.medecin} size={22}/>
+                      <div style={{minWidth:0}}><div style={{fontSize:11,color:"#374151",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:100}}>{row.medecin.split(" ")[0][0]}. {row.medecin.split(" ").slice(1).join(" ")}</div>{row.intervenant&&<div style={{fontSize:10,color:"#94A3B8"}}>{row.intervenant.split(" ")[0]}</div>}</div>
+                    </div>
+                    <div style={{padding:"10px 5px",display:"flex",alignItems:"center",gap:3}}>
+                      <span style={{background:pc.bg,color:pc.color,borderRadius:6,padding:"3px 10px",fontSize:12,fontWeight:700}}>{row.priorite}</span>
+                      <button onClick={()=>openAI(row)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,opacity:0.4,padding:2}}>ℹ</button>
+                    </div>
+                    <div style={{padding:"10px 5px",display:"flex",alignItems:"center"}}>
+                      <button className="btn-create" onClick={()=>createIntervention(row)} style={{padding:"5px 8px",borderRadius:6,border:`1px solid ${done?"#BBF7D0":"#E2E8F0"}`,background:done?"#F0FDF4":"white",color:done?"#15803D":"#64748B",fontSize:10.5,cursor:"pointer",fontWeight:500,whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                        {done?"✓ Créée":"Créer l'intervention"}
+                      </button>
+                    </div>
+                  </div>;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI PANEL */}
+      {aiOpen&&(
+        <div className="ai-panel" style={{width:320,height:"100vh",background:"white",borderLeft:"1px solid #E2E8F0",display:"flex",flexDirection:"column",flexShrink:0}}>
+          <div style={{padding:"13px 14px",borderBottom:"1px solid #F1F5F9",background:"#1D6AF5",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:32,height:32,borderRadius:8,background:"rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>✨</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{color:"white",fontWeight:700,fontSize:14}}>Assistant IA</div>
+              {selRow&&<div style={{color:"rgba(255,255,255,0.7)",fontSize:10,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selRow.adherent}</div>}
+            </div>
+            <button onClick={()=>setAiOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.8)",fontSize:18,lineHeight:1}}>✕</button>
+          </div>
+
+          <div style={{flex:1,overflowY:"auto",padding:12,display:"flex",flexDirection:"column",gap:8}}>
+            {msgs.length===0&&(
+              <div style={{textAlign:"center",padding:"20px 10px"}}>
+                <div style={{fontSize:32,marginBottom:8}}>🏥</div>
+                <div style={{fontSize:13,fontWeight:600,color:"#374151",marginBottom:4}}>Assistant Medtra5</div>
+                <div style={{fontSize:12,color:"#94A3B8",lineHeight:1.6,marginBottom:14}}>Posez vos questions sur les interventions et la priorisation.</div>
+                {!apiKey&&<div style={{background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#92400E",marginBottom:10}}>⚠️ Configurez votre clé API via ⚙️ en haut à droite pour activer l'IA.</div>}
+                {["Comment sont calculées les priorités ?","Quels adhérents sont les plus urgents ?","Résume les interventions SAUMUR"].map(q=>(
+                  <button key={q} onClick={()=>setInput(q)} style={{display:"block",width:"100%",padding:"7px 11px",borderRadius:7,border:"1px solid #E2E8F0",background:"#F8FAFC",color:"#374151",fontSize:11.5,cursor:"pointer",textAlign:"left",marginBottom:5}}>{q}</button>
+                ))}
+              </div>
+            )}
+            {msgs.map((m,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+                <div style={{maxWidth:"88%",padding:"9px 12px",borderRadius:10,background:m.role==="user"?"#1D6AF5":"#F1F5F9",color:m.role==="user"?"white":"#374151",fontSize:12,lineHeight:1.65,borderBottomRightRadius:m.role==="user"?3:10,borderBottomLeftRadius:m.role==="assistant"?3:10,whiteSpace:"pre-wrap"}}>{m.content}</div>
+              </div>
+            ))}
+            {loading&&<div style={{display:"flex"}}><div style={{padding:"9px 12px",borderRadius:10,background:"#F1F5F9",fontSize:12,color:"#94A3B8"}}>En réflexion…</div></div>}
+            <div ref={endRef}/>
+          </div>
+
+          <div style={{padding:"10px 12px",borderTop:"1px solid #F1F5F9"}}>
+            <div style={{display:"flex",gap:7,alignItems:"flex-end",background:"#F8FAFC",borderRadius:10,padding:"8px 11px",border:"1px solid #E2E8F0"}}>
+              <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}}} placeholder="Votre question…" rows={1} style={{flex:1,background:"none",border:"none",outline:"none",fontSize:12,color:"#374151",resize:"none",fontFamily:"inherit",lineHeight:1.5,minHeight:20}}/>
+              <button onClick={send} disabled={loading||!input.trim()} style={{width:30,height:30,borderRadius:7,background:input.trim()?"#1D6AF5":"#E2E8F0",border:"none",cursor:input.trim()?"pointer":"default",color:"white",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>➤</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast&&<div style={{position:"fixed",bottom:20,left:"50%",transform:"translateX(-50%)",background:"#1E293B",color:"white",padding:"10px 18px",borderRadius:8,fontSize:13,fontWeight:500,boxShadow:"0 4px 24px rgba(0,0,0,0.2)",zIndex:1000,whiteSpace:"nowrap",animation:"fadeUp 0.2s ease-out"}}>{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
