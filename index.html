@@ -16,17 +16,14 @@ body{font-family:'DM Sans','Segoe UI',sans-serif;overflow:hidden}
 ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px}
 ::-webkit-scrollbar-track{background:transparent}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes rankReveal{0%{transform:scale(0.4);opacity:0;filter:brightness(2)}60%{transform:scale(1.18)}100%{transform:scale(1);opacity:1;filter:brightness(1)}}
-@keyframes rowFlash{0%{background:#EFF6FF}60%{background:#EFF6FF}100%{background:inherit}}
-@keyframes rankEmpty{0%{opacity:0;transform:translateX(-4px)}100%{opacity:1;transform:translateX(0)}}
-.rank-badge{animation:rankReveal 0.35s cubic-bezier(.34,1.56,.64,1) both}
-.rank-empty{animation:rankEmpty 0.2s ease both}
-.row-animating{animation:rowFlash 0.6s ease both}
+@keyframes rowSlideIn{0%{opacity:0;transform:translateX(-18px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes rankPop{0%{transform:scale(0.5);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+.rank-badge{animation:rankPop 0.32s cubic-bezier(.34,1.56,.64,1) both}
+.rank-empty{opacity:0.4}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 .nav-btn:hover{background:rgba(255,255,255,0.07)!important;color:rgba(255,255,255,0.85)!important}
 .row-hover:hover{background:#EEF4FF!important;cursor:pointer}
-.row-hover{will-change:transform;}
 .btn-create:hover{background:#F0FDF4!important;border-color:#86EFAC!important;color:#15803D!important}
 .th{padding:8px 8px;font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;user-select:none;display:flex;align-items:center;white-space:nowrap;border-right:1px solid #F1F5F9}
 .th:last-child{border-right:none}
@@ -158,8 +155,6 @@ function App(){
   const [navOpen,setNavOpen]=useState(true);
   const [filterSecteur,setFilterSecteur]=useState('all');
   const [animKey,setAnimKey]=useState(0);
-  const rowRefs=useRef({});
-  const prevPositions=useRef({});
   const endRef=useRef(null);
 
   useEffect(()=>{
@@ -224,36 +219,10 @@ function App(){
   const paged=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
   const activeFiltersCount=(filterM!=="all"?1:0)+(filterT!=="all"?1:0)+(filterA!=="all"?1:0)+(filterSecteur!=="all"?1:0)+(search?1:0);
 
-  // Sauvegarder les positions APRÈS chaque rendu (pour le FLIP suivant)
-  React.useEffect(()=>{
-    Object.entries(rowRefs.current).forEach(([id,el])=>{
-      if(el)prevPositions.current[id]=el.getBoundingClientRect().top;
-    });
-  });
-
-  // FLIP : animer les lignes depuis leur ancienne position vers la nouvelle
-  React.useLayoutEffect(()=>{
-    if(!anyFilterActive)return;
-    setAnimKey(k=>k+1);
-    const DURATION=500;
-    Object.entries(rowRefs.current).forEach(([id,el])=>{
-      if(!el||prevPositions.current[id]===undefined)return;
-      const newTop=el.getBoundingClientRect().top;
-      const delta=prevPositions.current[id]-newTop;
-      if(Math.abs(delta)<2)return;
-      el.style.transition='none';
-      el.style.transform=`translateY(${delta}px)`;
-      el.style.opacity='0.35';
-      requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{
-          el.style.transition=`transform ${DURATION}ms cubic-bezier(0.34,1.15,0.64,1), opacity ${DURATION*0.55}ms ease`;
-          el.style.transform='';
-          el.style.opacity='';
-          setTimeout(()=>{ if(el){el.style.transition='';el.style.zIndex='';} },DURATION+60);
-        });
-      });
-    });
-  },[dynamicRanks,paged]);
+  // Animation : incrémenter animKey quand les rangs changent
+  useEffect(()=>{
+    if(anyFilterActive)setAnimKey(k=>k+1);
+  },[dynamicRanks]);
 
   const handleSort=(key)=>{if(key==="_action")return;if(sortKey===key)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortKey(key);setSortDir("asc");}setPage(1);};
   const resetFilters=()=>{setFilterM("all");setFilterT("all");setFilterA("all");setFilterSecteur("all");setSearch("");setPage(1);};
@@ -447,7 +416,7 @@ function App(){
                 ):paged.map((row,idx)=>{
                   const done=created.has(row.id);
                   return(
-                    <div key={String(row.id)} ref={el=>{if(el)rowRefs.current[String(row.id)]=el;else delete rowRefs.current[String(row.id)];}} className="row-hover" onClick={()=>openAI(row)} style={{display:"flex",borderBottom:"1px solid #F1F5F9",background:idx%2===0?"white":"#FAFBFC",position:"relative"}}>
+                    <div key={String(row.id)} className="row-hover" onClick={()=>openAI(row)} style={{display:"flex",borderBottom:"1px solid #F1F5F9",background:idx%2===0?"white":"#FAFBFC",animation:anyFilterActive?`rowSlideIn 0.38s cubic-bezier(0.25,0.46,0.45,0.94) ${Math.min(idx*22,500)}ms both`:"none"}}>
                       {COLS.map(col=>(
                         <div key={col.key} className="td" style={{width:col.width,minWidth:col.width,justifyContent:col.align==="center"?"center":"flex-start"}} onClick={col.key==="_action"?e=>e.stopPropagation():undefined}>
                           {renderCell(row,col,done)}
