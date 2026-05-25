@@ -57,6 +57,64 @@ const COLS=[
 
 const TOTAL_W=COLS.reduce((s,c)=>s+c.width,0);
 
+
+const NAF_SECTIONS={
+  "01":"Agriculture","02":"Agriculture","03":"Agriculture",
+  "05":"Industries extract.","06":"Industries extract.","07":"Industries extract.","08":"Industries extract.","09":"Industries extract.",
+  "10":"Industrie alim.","11":"Industrie alim.","12":"Industrie alim.","13":"Textile","14":"Textile","15":"Cuir","16":"Bois","17":"Papier","18":"Imprimerie","19":"Pétrole","20":"Chimie","21":"Pharma","22":"Plastique","23":"Minéraux","24":"Métallurgie","25":"Métal","26":"Électronique","27":"Équip. électrique","28":"Machines","29":"Auto","30":"Autres transp.","31":"Mobilier","32":"Autres manuf.","33":"Réparation",
+  "35":"Énergie",
+  "36":"Eau","37":"Eau","38":"Eau","39":"Eau",
+  "41":"Construction","42":"Construction","43":"Construction",
+  "45":"Commerce auto","46":"Commerce gros","47":"Commerce détail",
+  "49":"Transport","50":"Transport","51":"Transport","52":"Transport","53":"Transport",
+  "55":"Hôtellerie","56":"Restauration",
+  "58":"Édition","59":"Audiovisuel","60":"Audiovisuel","61":"Télécoms","62":"Informatique","63":"Services info",
+  "64":"Finance","65":"Assurance","66":"Finance",
+  "68":"Immobilier",
+  "69":"Juridique","70":"Conseil","71":"Ingénierie","72":"Recherche","73":"Pub","74":"Activités spéc.","75":"Vétérinaire",
+  "77":"Location","78":"RH","79":"Tourisme","80":"Sécurité","81":"Services bâtiment","82":"Services admin.",
+  "84":"Admin. publique",
+  "85":"Enseignement",
+  "86":"Santé humaine","87":"Héberg. médico-soc.","88":"Action sociale",
+  "90":"Arts","91":"Arts","92":"Jeux","93":"Sports",
+  "94":"Org. associatives","95":"Réparation","96":"Autres services",
+  "97":"Ménages","98":"Ménages",
+};
+function getNafSection(code){
+  if(!code)return null;
+  const div=code.replace(".","").substring(0,2);
+  return NAF_SECTIONS[div]||null;
+}
+function parseDate(s){
+  if(!s)return 0;
+  const p=s.split("/");
+  if(p.length===3)return new Date(+p[2],+p[1]-1,+p[0]).getTime();
+  return new Date(s).getTime()||0;
+}
+function computeRanks(subset){
+  const r1=[],r2=[];
+  subset.forEach(r=>{
+    const dateRef=r.dateFE?parseDate(r.dateFE):parseDate(r.adhesion);
+    if(!dateRef||r.effectif<=0)return;
+    if(r.effectif>2)r1.push({...r,_dateRef:dateRef});
+    else if(r.effectif===1||r.effectif===2)r2.push({...r,_dateRef:dateRef});
+  });
+  const interleave=(arr)=>{
+    const nv=arr.filter(r=>r.anciennete==="Nouvel Adh").sort((a,b)=>b._dateRef-a._dateRef);
+    const an=arr.filter(r=>r.anciennete==="Ancien Adh").sort((a,b)=>a._dateRef-b._dateRef);
+    const res=[];let ni=0,ai=0;
+    while(ni<nv.length||ai<an.length){
+      if(ni<nv.length)res.push(nv[ni++]);
+      for(let i=0;i<2&&ai<an.length;i++)res.push(an[ai++]);
+    }
+    return res;
+  };
+  const ranks={};
+  interleave(r1).forEach((r,i)=>ranks[r.id]={rang1:i+1,rang2:null});
+  interleave(r2).forEach((r,i)=>ranks[r.id]={rang1:null,rang2:i+1});
+  return ranks;
+}
+
 function Avatar({name,size=22}){
   if(!name||name==="nan"||!name.trim())return null;
   const parts=name.trim().split(" ");
@@ -72,7 +130,6 @@ function App(){
   const [activeNav,setActiveNav]=useState("Interventions");
   const [filterM,setFilterM]=useState("all");
   const [filterT,setFilterT]=useState("all");
-  const [filterP,setFilterP]=useState("all");
   const [filterA,setFilterA]=useState("all");
   const [search,setSearch]=useState("");
   const [sortKey,setSortKey]=useState("rang1");
@@ -89,6 +146,7 @@ function App(){
   const [apiKey,setApiKey]=useState(localStorage.getItem("medtra5_apikey")||"");
   const [showKeyInput,setShowKeyInput]=useState(false);
   const [navOpen,setNavOpen]=useState(true);
+  const [filterSecteur,setFilterSecteur]=useState('all');
   const endRef=useRef(null);
 
   useEffect(()=>{
@@ -98,6 +156,11 @@ function App(){
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"})},[msgs]);
 
   const medecins=useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=="nan"))].sort(),[data]);
+  const secteurs=useMemo(()=>{
+    const s=new Set();
+    data.forEach(r=>{const sec=getNafSection(r.nafCode);if(sec)s.add(sec);});
+    return [...s].sort();
+  },[data]);
   const territoires=useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=="nan"))].sort(),[data]);
   const statsP=useMemo(()=>({1:data.filter(r=>r.priorite===1).length,2:data.filter(r=>r.priorite===2).length,3:data.filter(r=>r.priorite===3).length}),[data]);
 
@@ -105,8 +168,8 @@ function App(){
     let d=data;
     if(filterM!=="all")d=d.filter(r=>r.medecin===filterM);
     if(filterT!=="all")d=d.filter(r=>r.territoire===filterT);
-    if(filterP!=="all")d=d.filter(r=>r.priorite===+filterP);
     if(filterA!=="all")d=d.filter(r=>r.anciennete===filterA);
+    if(filterSecteur!=="all")d=d.filter(r=>getNafSection(r.nafCode)===filterSecteur);
     if(search.trim()){const q=search.toLowerCase();d=d.filter(r=>r.adherent?.toLowerCase().includes(q)||r.medecin?.toLowerCase().includes(q)||r.territoire?.toLowerCase().includes(q)||r.naf?.toLowerCase().includes(q)||r.intervenant?.toLowerCase().includes(q));}
     const dir=sortDir==="asc"?1:-1;
     const emptyLast=["rang1","rang2"].includes(sortKey);
@@ -123,14 +186,17 @@ function App(){
       if(typeof avv==="string")return avv.localeCompare(bvv,"fr")*dir;
       return(avv-bvv)*dir;
     });
-  },[data,filterM,filterT,filterP,filterA,search,sortKey,sortDir]);
+  },[data,filterM,filterT,filterA,filterSecteur,search,sortKey,sortDir]);
+
+  const anyFilterActive=filterM!=="all"||filterT!=="all"||filterA!=="all"||filterSecteur!=="all"||search.trim()!=="";
+  const dynamicRanks=useMemo(()=>anyFilterActive?computeRanks(filtered):null,[filtered,anyFilterActive]);
 
   const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
   const paged=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
-  const activeFiltersCount=(filterM!=="all"?1:0)+(filterT!=="all"?1:0)+(filterP!=="all"?1:0)+(filterA!=="all"?1:0)+(search?1:0);
+  const activeFiltersCount=(filterM!=="all"?1:0)+(filterT!=="all"?1:0)+(filterA!=="all"?1:0)+(filterSecteur!=="all"?1:0)+(search?1:0);
 
   const handleSort=(key)=>{if(key==="_action")return;if(sortKey===key)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortKey(key);setSortDir("asc");}setPage(1);};
-  const resetFilters=()=>{setFilterM("all");setFilterT("all");setFilterP("all");setFilterA("all");setSearch("");setPage(1);};
+  const resetFilters=()=>{setFilterM("all");setFilterT("all");setFilterA("all");setFilterSecteur("all");setSearch("");setPage(1);};
   const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(null),3000)};
   const saveKey=(k)=>{setApiKey(k);localStorage.setItem("medtra5_apikey",k);setShowKeyInput(false);showToast("✓ Clé API enregistrée");};
 
@@ -166,8 +232,8 @@ function App(){
 
   const renderCell=(row,col,done)=>{
     switch(col.key){
-      case "rang1": return row.rang1?<span style={{fontWeight:700,color:"#1D4ED8",background:"#DBEAFE",borderRadius:5,padding:"2px 8px",fontSize:11}}>{row.rang1}</span>:<span style={{color:"#CBD5E1"}}>—</span>;
-      case "rang2": return row.rang2?<span style={{fontWeight:700,color:"#9D174D",background:"#FCE7F3",borderRadius:5,padding:"2px 8px",fontSize:11}}>{row.rang2}</span>:<span style={{color:"#CBD5E1"}}>—</span>;
+      case "rang1":{const v=dynamicRanks?dynamicRanks[row.id]?.rang1:row.rang1;return v?<span style={{fontWeight:700,color:"#1D4ED8",background:"#DBEAFE",borderRadius:5,padding:"2px 8px",fontSize:11}}>{v}</span>:<span style={{color:"#CBD5E1"}}>—</span>;}
+      case "rang2":{const v=dynamicRanks?dynamicRanks[row.id]?.rang2:row.rang2;return v?<span style={{fontWeight:700,color:"#9D174D",background:"#FCE7F3",borderRadius:5,padding:"2px 8px",fontSize:11}}>{v}</span>:<span style={{color:"#CBD5E1"}}>—</span>;}
       case "adherent": return(
         <div style={{minWidth:0}}>
           <div style={{fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row.adherent}</div>
@@ -280,12 +346,7 @@ function App(){
 
             {/* FILTERS */}
             {showFilters&&<div style={{display:"flex",gap:8,padding:"8px 14px",borderBottom:"1px solid #F1F5F9",background:"#FAFBFC",flexWrap:"wrap",alignItems:"center"}}>
-              <select value={filterP} onChange={e=>{setFilterP(e.target.value);setPage(1);}} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,color:"#475569",background:"white",outline:"none"}}>
-                <option value="all">Toutes priorités</option>
-                <option value="1">🔴 P1 – Urgent</option>
-                <option value="2">🟡 P2 – Prioritaire</option>
-                <option value="3">🟢 P3 – Planifié</option>
-              </select>
+
               <select value={filterT} onChange={e=>{setFilterT(e.target.value);setPage(1);}} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,color:"#475569",background:"white",outline:"none"}}>
                 <option value="all">Tous territoires</option>
                 {territoires.map(t=><option key={t} value={t}>{t}</option>)}
@@ -298,6 +359,10 @@ function App(){
                 <option value="all">Toute ancienneté</option>
                 <option value="Nouvel Adh">Nouvel adhérent</option>
                 <option value="Ancien Adh">Ancien adhérent</option>
+              </select>
+              <select value={filterSecteur} onChange={e=>{setFilterSecteur(e.target.value);setPage(1);}} style={{padding:"4px 8px",borderRadius:6,border:`1px solid ${filterSecteur!=="all"?"#A78BFA":"#E2E8F0"}`,fontSize:12,color:filterSecteur!=="all"?"#5B21B6":"#475569",background:filterSecteur!=="all"?"#EDE9FE":"white",outline:"none",fontWeight:filterSecteur!=="all"?600:400}}>
+                <option value="all">Tous secteurs d'activité</option>
+                {secteurs.map(s=><option key={s} value={s}>{s}</option>)}
               </select>
               {activeFiltersCount>0&&<button onClick={resetFilters} style={{padding:"4px 10px",borderRadius:6,border:"1px solid #FECACA",fontSize:12,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>✕ Réinitialiser</button>}
             </div>}
