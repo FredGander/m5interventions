@@ -50,8 +50,8 @@ const COLS=[
   {label:"Anc.",      key:"anciennete",width:80,  align:"center"},
   {label:"Territoire",key:"territoire",width:110, align:"left"},
   {label:"Intervenant",key:"intervenant",width:140,align:"left"},
-  {label:"Prio 1-2",  key:"rang2",     width:72,  align:"center"},
-  {label:"Prio >2",   key:"rang1",     width:72,  align:"center"},
+  {label:"Prio 1-2",  key:"rang2",     width:72,  align:"center", headerColor:"#9D174D", headerBg:"#FCE7F3"},
+  {label:"Prio >2",   key:"rang1",     width:72,  align:"center", headerColor:"#1D4ED8", headerBg:"#DBEAFE"},
   {label:"Action",    key:"_action",   width:120, align:"center"},
 ];
 
@@ -166,14 +166,14 @@ function App(){
 
   const renderCell=(row,col,done)=>{
     switch(col.key){
-      case "rang1": return <span style={{fontWeight:700,color:"#475569"}}>{row.rang1||"—"}</span>;
-      case "rang2": return <span style={{color:"#94A3B8"}}>{row.rang2||"—"}</span>;
+      case "rang1": return row.rang1?<span style={{fontWeight:700,color:"#1D4ED8",background:"#DBEAFE",borderRadius:5,padding:"2px 8px",fontSize:11}}>{row.rang1}</span>:<span style={{color:"#CBD5E1"}}>—</span>;
+      case "rang2": return row.rang2?<span style={{fontWeight:700,color:"#9D174D",background:"#FCE7F3",borderRadius:5,padding:"2px 8px",fontSize:11}}>{row.rang2}</span>:<span style={{color:"#CBD5E1"}}>—</span>;
       case "adherent": return(
         <div style={{minWidth:0}}>
           <div style={{fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row.adherent}</div>
         </div>
       );
-      case "naf": return <span style={{color:"#64748B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"block"}}>{row.naf}</span>;
+      case "naf": return <div style={{minWidth:0}}><div style={{color:"#374151",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11.5}}>{row.naf}</div>{row.nafCode&&<div style={{color:"#94A3B8",fontSize:10}}>{row.nafCode}</div>}</div>;
       case "adhesion": return <span style={{color:"#64748B",fontSize:11}}>{row.adhesion||"—"}</span>;
       case "medecin": return(
         <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
@@ -265,16 +265,6 @@ function App(){
         </div>}
 
         <div style={{flex:1,overflow:"auto",padding:12}}>
-          {/* KPI */}
-          <div style={{display:"flex",gap:10,marginBottom:12}}>
-            {[{l:"Total interventions",v:data.length,c:"#3B82F6",f:null},{l:"Urgentes — P1",v:statsP[1],c:"#B91C1C",f:"1"},{l:"Prioritaires — P2",v:statsP[2],c:"#B45309",f:"2"},{l:"Planifiées — P3",v:statsP[3],c:"#15803D",f:"3"}].map(({l,v,c,f})=>(
-              <div key={l} onClick={()=>{if(f){setFilterP(filterP===f?"all":f);setPage(1);}}} style={{flex:1,background:"white",borderRadius:8,padding:"10px 14px",border:`1px solid ${filterP===f?"#BFDBFE":"#E2E8F0"}`,cursor:f?"pointer":"default",transition:"all 0.15s"}}>
-                <div style={{fontSize:10.5,color:"#94A3B8",marginBottom:3}}>{l}</div>
-                <div style={{fontSize:22,fontWeight:700,color:c}}>{appLoading?"…":v.toLocaleString()}</div>
-              </div>
-            ))}
-          </div>
-
           {/* TABLE CARD */}
           <div style={{background:"white",borderRadius:10,border:"1px solid #E2E8F0",overflow:"hidden"}}>
             {/* TOOLBAR */}
@@ -318,7 +308,7 @@ function App(){
                 {/* HEADER */}
                 <div style={{display:"flex",background:"#F8FAFC",borderBottom:"2px solid #E2E8F0",position:"sticky",top:0,zIndex:10}}>
                   {COLS.map(col=>(
-                    <div key={col.key} className="th" onClick={()=>handleSort(col.key)} style={{width:col.width,minWidth:col.width,justifyContent:col.align==="center"?"center":"flex-start"}}>
+                    <div key={col.key} className="th" onClick={()=>handleSort(col.key)} style={{width:col.width,minWidth:col.width,justifyContent:col.align==="center"?"center":"flex-start",color:col.headerColor||undefined,background:col.headerBg||undefined}}>
                       {col.label}{col.key!=="_action"&&<span style={{marginLeft:2,opacity:sortKey===col.key?0.8:0.2}}>{sortKey===col.key?(sortDir==="asc"?"↑":"↓"):"↕"}</span>}
                     </div>
                   ))}
