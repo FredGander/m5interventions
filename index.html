@@ -3,445 +3,352 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Medtra5 — Priorisation des interventions</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<title>Medtra5 — Interventions</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans','Segoe UI',sans-serif;overflow:hidden}
+body{font-family:'DM Sans',sans-serif;overflow:hidden;background:#EDF1F7}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px}
-::-webkit-scrollbar-track{background:transparent}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes rowSlideIn{0%{opacity:0;transform:translateX(-18px)}100%{opacity:1;transform:translateX(0)}}
-@keyframes rankPop{0%{transform:scale(0.5);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
-.rank-badge{animation:rankPop 0.32s cubic-bezier(.34,1.56,.64,1) both}
-.rank-empty{opacity:0.4}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
-.nav-btn:hover{background:rgba(255,255,255,0.07)!important;color:rgba(255,255,255,0.85)!important}
-.row-hover:hover{background:#EEF4FF!important;cursor:pointer}
-.btn-create:hover{background:#F0FDF4!important;border-color:#86EFAC!important;color:#15803D!important}
-.th{padding:8px 8px;font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;user-select:none;display:flex;align-items:center;white-space:nowrap;border-right:1px solid #F1F5F9}
-.th:last-child{border-right:none}
+@keyframes slideIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+@keyframes popIn{0%{transform:scale(0.5);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+.nav-item{width:100%;padding:7px 14px;display:flex;align-items:center;gap:8px;background:transparent;border:none;border-left:3px solid transparent;color:rgba(255,255,255,0.45);font-size:12px;cursor:pointer;text-align:left;font-family:inherit;transition:all 0.1s}
+.nav-item:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.8)}
+.nav-item.active{background:rgba(29,106,245,0.2);border-left-color:#3B82F6;color:white;font-weight:600}
+.th{padding:8px;font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;user-select:none;display:flex;align-items:center;white-space:nowrap;border-right:1px solid #F1F5F9;flex-shrink:0}
 .th:hover{background:#EFF6FF;color:#2563EB}
-.td{padding:9px 8px;font-size:12px;color:#374151;display:flex;align-items:center;border-right:1px solid #F8FAFC;overflow:hidden}
-.td:last-child{border-right:none}
-input::placeholder{color:rgba(255,255,255,0.35)}
-textarea::placeholder{color:#94A3B8}
+.td{padding:9px 8px;font-size:12px;color:#374151;display:flex;align-items:center;border-right:1px solid #F8FAFC;overflow:hidden;flex-shrink:0}
+.row{display:flex;border-bottom:1px solid #F1F5F9;cursor:pointer;transition:background 0.1s}
+.row:hover{background:#EEF4FF!important}
+.row.anim{animation:slideIn 0.35s ease both}
+select,input{font-family:inherit}
 </style>
 </head>
-<body>
-<div id="root"></div>
+<body><div id="root"></div>
 <script type="text/babel">
-const {useState,useRef,useEffect,useMemo}=React;
+const {useState, useEffect, useMemo, useRef} = React;
+const PAGE = 50;
 
-const PRIO={1:{bg:"#FEE2E2",color:"#B91C1C",label:"Urgent"},2:{bg:"#FEF3C7",color:"#B45309",label:"Prioritaire"},3:{bg:"#DCFCE7",color:"#15803D",label:"Planifié"}};
-const PAGE_SIZE=50;
-const NAV=["Tableau de bord","Adhérents","Travailleurs","RDVs santé travail","Planning","Interventions","PDP","Demandes","Alertes","Ressources","Eval-Risq","Documents","Statistiques"];
+/* ── NAF sections ── */
+const SECTIONS = {"01":"Agriculture","02":"Agriculture","03":"Agriculture","05":"Industries extract.","06":"Industries extract.","07":"Industries extract.","08":"Industries extract.","09":"Industries extract.","10":"Industrie alim.","11":"Industrie alim.","12":"Industrie alim.","13":"Textile","14":"Textile","15":"Cuir","16":"Bois","17":"Papier","18":"Imprimerie","19":"Pétrole","20":"Chimie","21":"Pharma","22":"Plastique","23":"Minéraux","24":"Métallurgie","25":"Métal","26":"Électronique","27":"Équip. électrique","28":"Machines","29":"Auto","30":"Autres transp.","31":"Mobilier","32":"Autres manuf.","33":"Réparation","35":"Énergie","36":"Eau","37":"Eau","38":"Eau","39":"Eau","41":"Construction","42":"Construction","43":"Construction","45":"Commerce auto","46":"Commerce gros","47":"Commerce détail","49":"Transport","50":"Transport","51":"Transport","52":"Transport","53":"Transport","55":"Hôtellerie","56":"Restauration","58":"Édition","59":"Audiovisuel","60":"Audiovisuel","61":"Télécoms","62":"Informatique","63":"Services info","64":"Finance","65":"Assurance","66":"Finance","68":"Immobilier","69":"Juridique","70":"Conseil","71":"Ingénierie","72":"Recherche","73":"Pub","74":"Activités spéc.","75":"Vétérinaire","77":"Location","78":"RH","79":"Tourisme","80":"Sécurité","81":"Services bâtiment","82":"Services admin.","84":"Admin. publique","85":"Enseignement","86":"Santé humaine","87":"Héberg. médico-soc.","88":"Action sociale","90":"Arts","91":"Arts","92":"Jeux","93":"Sports","94":"Org. assoc.","95":"Réparation","96":"Autres services","97":"Ménages","98":"Ménages"};
+const getSection = code => { if(!code) return null; const d = code.replace('.','').substring(0,2); return SECTIONS[d]||null; };
 
-// Colonnes du tableau — exactement comme Excel + Priorité calculée
-const COLS=[
-  {label:"Adhérent",  key:"adherent",  width:200, align:"left"},
-  {label:"NAF",       key:"naf",       width:180, align:"left"},
-  {label:"Adhésion",  key:"adhesion",  width:88,  align:"center"},
-  {label:"Médecin",   key:"medecin",   width:160, align:"left"},
-  {label:"Effectif",  key:"effectif",  width:70,  align:"center"},
-  {label:"Date FE",   key:"dateFE",    width:88,  align:"center"},
-  {label:"Anc.",      key:"anciennete",width:80,  align:"center"},
-  {label:"Territoire",key:"territoire",width:110, align:"left"},
-  {label:"Intervenant",key:"intervenant",width:140,align:"left"},
-  {label:"Prio 1-2",  key:"rang2",     width:72,  align:"center", headerColor:"#9D174D", headerBg:"#FCE7F3"},
-  {label:"Prio >2",   key:"rang1",     width:72,  align:"center", headerColor:"#1D4ED8", headerBg:"#DBEAFE"},
-  {label:"Action",    key:"_action",   width:120, align:"center"},
-];
+/* ── Date parsing ── */
+const parseDate = s => { if(!s) return 0; const p=s.split('/'); return p.length===3 ? new Date(+p[2],+p[1]-1,+p[0]).getTime() : (new Date(s).getTime()||0); };
 
-const TOTAL_W=COLS.reduce((s,c)=>s+c.width,0);
-
-
-const NAF_SECTIONS={
-  "01":"Agriculture","02":"Agriculture","03":"Agriculture",
-  "05":"Industries extract.","06":"Industries extract.","07":"Industries extract.","08":"Industries extract.","09":"Industries extract.",
-  "10":"Industrie alim.","11":"Industrie alim.","12":"Industrie alim.","13":"Textile","14":"Textile","15":"Cuir","16":"Bois","17":"Papier","18":"Imprimerie","19":"Pétrole","20":"Chimie","21":"Pharma","22":"Plastique","23":"Minéraux","24":"Métallurgie","25":"Métal","26":"Électronique","27":"Équip. électrique","28":"Machines","29":"Auto","30":"Autres transp.","31":"Mobilier","32":"Autres manuf.","33":"Réparation",
-  "35":"Énergie",
-  "36":"Eau","37":"Eau","38":"Eau","39":"Eau",
-  "41":"Construction","42":"Construction","43":"Construction",
-  "45":"Commerce auto","46":"Commerce gros","47":"Commerce détail",
-  "49":"Transport","50":"Transport","51":"Transport","52":"Transport","53":"Transport",
-  "55":"Hôtellerie","56":"Restauration",
-  "58":"Édition","59":"Audiovisuel","60":"Audiovisuel","61":"Télécoms","62":"Informatique","63":"Services info",
-  "64":"Finance","65":"Assurance","66":"Finance",
-  "68":"Immobilier",
-  "69":"Juridique","70":"Conseil","71":"Ingénierie","72":"Recherche","73":"Pub","74":"Activités spéc.","75":"Vétérinaire",
-  "77":"Location","78":"RH","79":"Tourisme","80":"Sécurité","81":"Services bâtiment","82":"Services admin.",
-  "84":"Admin. publique",
-  "85":"Enseignement",
-  "86":"Santé humaine","87":"Héberg. médico-soc.","88":"Action sociale",
-  "90":"Arts","91":"Arts","92":"Jeux","93":"Sports",
-  "94":"Org. associatives","95":"Réparation","96":"Autres services",
-  "97":"Ménages","98":"Ménages",
-};
-function getNafSection(code){
-  if(!code)return null;
-  const div=code.replace(".","").substring(0,2);
-  return NAF_SECTIONS[div]||null;
-}
-function parseDate(s){
-  if(!s)return 0;
-  const p=s.split("/");
-  if(p.length===3)return new Date(+p[2],+p[1]-1,+p[0]).getTime();
-  return new Date(s).getTime()||0;
-}
-function computeRanks(subset){
-  const r1=[],r2=[];
-  subset.forEach(r=>{
-    const eff=Number(r.effectif)||0;
-    const dateRef=r.dateFE?parseDate(r.dateFE):parseDate(r.adhesion);
-    if(!dateRef||eff<=0)return;
-    const row={...r,effectif:eff,_dateRef:dateRef,_key:String(r.id)};
-    if(eff>2)r1.push(row);
-    else if(eff>=1&&eff<=2)r2.push(row);
+/* ── Rank computation ── */
+function computeRanks(rows) {
+  const r1=[], r2=[];
+  rows.forEach(r => {
+    const eff = Number(r.effectif)||0;
+    const dt = r.dateFE ? parseDate(r.dateFE) : parseDate(r.adhesion);
+    if(!dt || eff<=0) return;
+    const item = {...r, _eff:eff, _dt:dt, _key:String(r.id)};
+    if(eff>2) r1.push(item);
+    else if(eff>=1 && eff<=2) r2.push(item);
   });
-  const interleave=(arr)=>{
-    const nv=arr.filter(r=>r.anciennete==="Nouvel Adh").sort((a,b)=>b._dateRef-a._dateRef);
-    const an=arr.filter(r=>r.anciennete==="Ancien Adh").sort((a,b)=>a._dateRef-b._dateRef);
-    const out=[];let ni=0,ai=0;
+  const interleave = arr => {
+    const nv = arr.filter(r=>r.anciennete==='Nouvel Adh').sort((a,b)=>b._dt-a._dt);
+    const an = arr.filter(r=>r.anciennete==='Ancien Adh').sort((a,b)=>a._dt-b._dt);
+    const out=[]; let ni=0,ai=0;
     while(ni<nv.length||ai<an.length){
-      if(ni<nv.length)out.push(nv[ni++]);
-      if(ai<an.length)out.push(an[ai++]);
-      if(ai<an.length)out.push(an[ai++]);
+      if(ni<nv.length) out.push(nv[ni++]);
+      if(ai<an.length) out.push(an[ai++]);
+      if(ai<an.length) out.push(an[ai++]);
     }
     return out;
   };
   const ranks={};
-  interleave(r1).forEach((r,idx)=>{ranks[r._key]={rang1:idx+1,rang2:null};});
-  interleave(r2).forEach((r,idx)=>{ranks[r._key]={rang1:null,rang2:idx+1};});
+  interleave(r1).forEach((r,i)=>{ ranks[r._key]={r1:i+1,r2:null}; });
+  interleave(r2).forEach((r,i)=>{ ranks[r._key]={r1:null,r2:i+1}; });
   return ranks;
 }
 
-function Avatar({name,size=22}){
-  if(!name||name==="nan"||!name.trim())return null;
-  const parts=name.trim().split(" ");
-  const init=(parts[0]?.[0]||"?").toUpperCase()+(parts[1]?.[0]||"").toUpperCase();
-  const hues=[210,270,160,30,340,190,220,50,300,170];
-  const h=hues[name.charCodeAt(0)%hues.length];
-  return <div style={{width:size,height:size,borderRadius:"50%",background:`hsl(${h},55%,40%)`,color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.34,fontWeight:700,flexShrink:0}}>{init}</div>;
+/* ── Avatar ── */
+function Av({name,size=22}){
+  if(!name||name==='nan') return null;
+  const p=name.trim().split(' ');
+  const i=(p[0]?.[0]||'').toUpperCase()+(p[1]?.[0]||'').toUpperCase();
+  const h=[210,270,160,30,340,190,220,50][name.charCodeAt(0)%8];
+  return <div style={{width:size,height:size,borderRadius:'50%',background:`hsl(${h},55%,40%)`,color:'white',display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*.34,fontWeight:700,flexShrink:0}}>{i}</div>;
 }
 
+/* ── Badge rang ── */
+function RangBadge({v,color,bg,animKey}){
+  if(!v) return <span style={{color:'#CBD5E1'}}>—</span>;
+  return <span key={`${animKey}-${v}`} style={{fontWeight:700,color,background:bg,borderRadius:5,padding:'2px 8px',fontSize:11,display:'inline-block',animation:`popIn 0.3s cubic-bezier(.34,1.56,.64,1) ${Math.min(v*15,500)}ms both`}}>{v}</span>;
+}
+
+const NAV=['Tableau de bord','Adhérents','Travailleurs','RDVs santé travail','Planning','Interventions','PDP','Demandes','Alertes','Ressources','Eval-Risq','Documents','Statistiques'];
+
+const COLS=[
+  {k:'adherent',  label:'Adhérent',   w:190},
+  {k:'naf',       label:'NAF',        w:175},
+  {k:'adhesion',  label:'Adhésion',   w:82, center:true},
+  {k:'medecin',   label:'Médecin',    w:155},
+  {k:'effectif',  label:'Effectif',   w:65, center:true},
+  {k:'dateFE',    label:'Date FE',    w:82, center:true},
+  {k:'anciennete',label:'Anc.',       w:72, center:true},
+  {k:'territoire',label:'Territoire', w:105},
+  {k:'intervenant',label:'Intervenant',w:135},
+  {k:'rang2',     label:'Prio 1-2',   w:72, center:true, hColor:'#9D174D', hBg:'#FCE7F3'},
+  {k:'rang1',     label:'Prio >2',    w:72, center:true, hColor:'#1D4ED8', hBg:'#DBEAFE'},
+  {k:'_action',   label:'Action',     w:118,center:true},
+];
+const TW = COLS.reduce((s,c)=>s+c.w,0);
+
+/* ══════════════════════════════════════════════════════ */
 function App(){
-  const [data,setData]=useState([]);
-  const [appLoading,setAppLoading]=useState(true);
-  const [activeNav,setActiveNav]=useState("Interventions");
-  const [filterM,setFilterM]=useState("all");
-  const [filterT,setFilterT]=useState("all");
-  const [filterA,setFilterA]=useState("all");
-  const [search,setSearch]=useState("");
-  const [sortKey,setSortKey]=useState("rang1");
-  const [sortDir,setSortDir]=useState("asc");
-  const [page,setPage]=useState(1);
-  const [showFilters,setShowFilters]=useState(false);
-  const [aiOpen,setAiOpen]=useState(false);
-  const [selRow,setSelRow]=useState(null);
-  const [msgs,setMsgs]=useState([]);
-  const [input,setInput]=useState("");
-  const [aiLoading,setAiLoading]=useState(false);
-  const [created,setCreated]=useState(new Set());
-  const [toast,setToast]=useState(null);
-  const [apiKey,setApiKey]=useState(localStorage.getItem("medtra5_apikey")||"");
-  const [showKeyInput,setShowKeyInput]=useState(false);
-  const [navOpen,setNavOpen]=useState(true);
-  const [filterSecteur,setFilterSecteur]=useState('all');
-  const [animKey,setAnimKey]=useState(0);
-  const endRef=useRef(null);
+  const [data,      setData]      = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [nav,       setNav]       = useState('Interventions');
+  const [search,    setSearch]    = useState('');
+  const [fM,        setFM]        = useState('all');
+  const [fT,        setFT]        = useState('all');
+  const [fA,        setFA]        = useState('all');
+  const [fS,        setFS]        = useState('all');
+  const [sortK,     setSortK]     = useState('rang1');
+  const [sortD,     setSortD]     = useState('asc');
+  const [page,      setPage]      = useState(1);
+  const [showF,     setShowF]     = useState(false);
+  const [created,   setCreated]   = useState(new Set());
+  const [toast,     setToast]     = useState(null);
+  const [apiKey,    setApiKey]    = useState(localStorage.getItem('m5key')||'');
+  const [showKey,   setShowKey]   = useState(false);
+  const [navOpen,   setNavOpen]   = useState(true);
+  const [aiOpen,    setAiOpen]    = useState(false);
+  const [selRow,    setSelRow]    = useState(null);
+  const [msgs,      setMsgs]      = useState([]);
+  const [aiInput,   setAiInput]   = useState('');
+  const [aiLoad,    setAiLoad]    = useState(false);
+  const [animKey,   setAnimKey]   = useState(0);
+  const endRef = useRef(null);
 
   useEffect(()=>{
-    fetch('./data.json').then(r=>r.json()).then(d=>{setData(d);setAppLoading(false);}).catch(()=>setAppLoading(false));
+    fetch('./data.json').then(r=>r.json()).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));
   },[]);
 
-  useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"})},[msgs]);
+  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:'smooth'}); },[msgs]);
 
+  /* lists for selects */
+  const medecins   = useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=='nan'))].sort(),[data]);
+  const territoires= useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=='nan'))].sort(),[data]);
+  const secteurs   = useMemo(()=>{ const s=new Set(); data.forEach(r=>{const x=getSection(r.nafCode);if(x)s.add(x);}); return [...s].sort(); },[data]);
 
-  const medecins=useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=="nan"))].sort(),[data]);
-  const secteurs=useMemo(()=>{
-    const s=new Set();
-    data.forEach(r=>{const sec=getNafSection(r.nafCode);if(sec)s.add(sec);});
-    return [...s].sort();
-  },[data]);
-  const territoires=useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=="nan"))].sort(),[data]);
-  const statsP=useMemo(()=>({1:data.filter(r=>r.priorite===1).length,2:data.filter(r=>r.priorite===2).length,3:data.filter(r=>r.priorite===3).length}),[data]);
-
-  // 1. Filtrage seul (sans tri) → base pour le recalcul des rangs
-  const filteredBase=useMemo(()=>{
+  /* filtering */
+  const base = useMemo(()=>{
     let d=data;
-    if(filterM!=="all")d=d.filter(r=>r.medecin===filterM);
-    if(filterT!=="all")d=d.filter(r=>r.territoire===filterT);
-    if(filterA!=="all")d=d.filter(r=>r.anciennete===filterA);
-    if(filterSecteur!=="all")d=d.filter(r=>getNafSection(r.nafCode)===filterSecteur);
-    if(search.trim()){const q=search.toLowerCase();d=d.filter(r=>r.adherent?.toLowerCase().includes(q)||r.medecin?.toLowerCase().includes(q)||r.territoire?.toLowerCase().includes(q)||r.naf?.toLowerCase().includes(q)||r.intervenant?.toLowerCase().includes(q));}
+    if(fM!=='all') d=d.filter(r=>r.medecin===fM);
+    if(fT!=='all') d=d.filter(r=>r.territoire===fT);
+    if(fA!=='all') d=d.filter(r=>r.anciennete===fA);
+    if(fS!=='all') d=d.filter(r=>getSection(r.nafCode)===fS);
+    if(search.trim()){ const q=search.toLowerCase(); d=d.filter(r=>r.adherent?.toLowerCase().includes(q)||r.medecin?.toLowerCase().includes(q)||r.territoire?.toLowerCase().includes(q)||r.naf?.toLowerCase().includes(q)||r.intervenant?.toLowerCase().includes(q)); }
     return d;
-  },[data,filterM,filterT,filterA,filterSecteur,search]);
+  },[data,fM,fT,fA,fS,search]);
 
-  // 2. Recalcul des rangs sur le sous-ensemble filtré
-  const anyFilterActive=filterM!=="all"||filterT!=="all"||filterA!=="all"||filterSecteur!=="all"||search.trim()!=="";
-  const dynamicRanks=useMemo(()=>anyFilterActive?computeRanks(filteredBase):null,[filteredBase,anyFilterActive]);
+  const anyFilter = fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||search.trim()!=='';
 
-  // 3. Tri : utilise les rangs dynamiques si actifs, sinon les rangs globaux
-  const filtered=useMemo(()=>{
-    const dir=sortDir==="asc"?1:-1;
-    const emptyLast=["rang1","rang2"].includes(sortKey);
-    return [...filteredBase].sort((a,b)=>{
-      // Récupérer la valeur de tri : rang dynamique si dispo, sinon rang global
-      const getVal=(r)=>{
-        if(emptyLast&&dynamicRanks){
-          if(sortKey==="rang1")return dynamicRanks[String(r.id)]?.rang1??null;
-          if(sortKey==="rang2")return dynamicRanks[String(r.id)]?.rang2??null;
-        }
-        return r[sortKey];
-      };
-      const av=getVal(a),bv=getVal(b);
-      if(emptyLast){
-        const ae=!av||av===0,be=!bv||bv===0;
-        if(ae&&be)return 0;
-        if(ae)return 1;
-        if(be)return -1;
-        return(av-bv)*dir;
-      }
-      const avv=av??0,bvv=bv??0;
-      if(typeof avv==="string")return avv.localeCompare(bvv,"fr")*dir;
-      return(avv-bvv)*dir;
-    });
-  },[filteredBase,dynamicRanks,sortKey,sortDir]);
+  /* dynamic ranks */
+  const dynRanks = useMemo(()=>anyFilter ? computeRanks(base) : null,[base,anyFilter]);
 
-  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
-  const paged=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
-  const activeFiltersCount=(filterM!=="all"?1:0)+(filterT!=="all"?1:0)+(filterA!=="all"?1:0)+(filterSecteur!=="all"?1:0)+(search?1:0);
-
-  // Animation : incrémenter animKey quand les rangs changent
+  /* trigger animation when dynRanks changes */
+  const prevDyn = useRef(null);
   useEffect(()=>{
-    if(anyFilterActive)setAnimKey(k=>k+1);
-  },[dynamicRanks]);
+    if(dynRanks && dynRanks!==prevDyn.current){ setAnimKey(k=>k+1); }
+    prevDyn.current = dynRanks;
+  },[dynRanks]);
 
-  const handleSort=(key)=>{if(key==="_action")return;if(sortKey===key)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortKey(key);setSortDir("asc");}setPage(1);};
-  const resetFilters=()=>{setFilterM("all");setFilterT("all");setFilterA("all");setFilterSecteur("all");setSearch("");setPage(1);};
-  const showToast=(m)=>{setToast(m);setTimeout(()=>setToast(null),3000)};
-  const saveKey=(k)=>{setApiKey(k);localStorage.setItem("medtra5_apikey",k);setShowKeyInput(false);showToast("✓ Clé API enregistrée");};
-
-  const openAI=(row)=>{
-    setSelRow(row);setAiOpen(true);
-    setMsgs([{role:"assistant",content:`Intervention sélectionnée :\n• ${row.adherent}\n• ${row.naf}\n• Médecin : ${row.medecin}\n• Intervenant : ${row.intervenant||"—"}\n• Priorité ${row.priorite} — ${PRIO[row.priorite]?.label}\n• Effectif : ${row.effectif} | Territoire : ${row.territoire} | ${row.anciennete}\n• Rang 1 : ${row.rang1} | Rang 2 : ${row.rang2||"—"}\n\nQue souhaitez-vous analyser ?`}]);
+  /* get display rank for a row */
+  const getRank = (row,key) => {
+    if(dynRanks){ const e=dynRanks[String(row.id)]; return e ? e[key==='rang1'?'r1':'r2'] : null; }
+    return row[key];
   };
 
-  const sendAI=async()=>{
-    if(!input.trim()||aiLoading)return;
-    if(!apiKey){setShowKeyInput(true);return;}
-    const uMsg={role:"user",content:input};
-    const history=[...msgs,uMsg];
-    setMsgs(history);setInput("");setAiLoading(true);
-    try{
-      const r=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",max_tokens:600,
-          system:`Assistant IA Medtra5 (médecine du travail). Intervention contexte: ${selRow?JSON.stringify(selRow):"aucune sélectionnée"}. Stats globales: Total=${data.length}, P1=${statsP[1]}, P2=${statsP[2]}, P3=${statsP[3]}. Vue filtrée: ${filtered.length} interventions. Priorité calculée depuis Rang1: P1=rang≤5, P2=rang≤15, P3=reste. Répondez en français, de façon concise.`,
-          messages:history.map(m=>({role:m.role,content:m.content})),
-        })
-      });
-      const d=await r.json();
-      if(d.error)throw new Error(d.error.message);
-      setMsgs([...history,{role:"assistant",content:d.content?.[0]?.text||"Pas de réponse."}]);
-    }catch(e){setMsgs([...history,{role:"assistant",content:`Erreur : ${e.message||"Connexion impossible. Vérifiez votre clé API."}`}]);}
-    setAiLoading(false);
-  };
-
-  const SortArrow=({k})=>k==="_action"?null:sortKey===k?<span style={{marginLeft:2,opacity:0.8}}>{sortDir==="asc"?"↑":"↓"}</span>:<span style={{marginLeft:2,opacity:0.18}}>↕</span>;
-
-  const renderCell=(row,col,done)=>{
-    switch(col.key){
-      case "rang1":{const v=dynamicRanks?dynamicRanks[String(row.id)]?.rang1:row.rang1;return v?<span key={`r1-${animKey}-${v}`} className="rank-badge" style={{fontWeight:700,color:"#1D4ED8",background:"#DBEAFE",borderRadius:5,padding:"2px 8px",fontSize:11,animationDelay:`${Math.min(v*18,600)}ms`,display:"inline-block"}}>{v}</span>:<span className="rank-empty" key={`r1e-${animKey}-${row.id}`} style={{color:"#CBD5E1"}}>—</span>;}
-      case "rang2":{const v=dynamicRanks?dynamicRanks[String(row.id)]?.rang2:row.rang2;return v?<span key={`r2-${animKey}-${v}`} className="rank-badge" style={{fontWeight:700,color:"#9D174D",background:"#FCE7F3",borderRadius:5,padding:"2px 8px",fontSize:11,animationDelay:`${Math.min(v*18,600)}ms`,display:"inline-block"}}>{v}</span>:<span className="rank-empty" key={`r2e-${animKey}-${row.id}`} style={{color:"#CBD5E1"}}>—</span>;}
-      case "adherent": return(
-        <div style={{minWidth:0}}>
-          <div style={{fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row.adherent}</div>
-        </div>
-      );
-      case "naf": return <div style={{minWidth:0}}><div style={{color:"#374151",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11.5}}>{row.naf}</div>{row.nafCode&&<div style={{color:"#94A3B8",fontSize:10}}>{row.nafCode}</div>}</div>;
-      case "adhesion": return <span style={{color:"#64748B",fontSize:11}}>{row.adhesion||"—"}</span>;
-      case "medecin": return(
-        <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
-          <Avatar name={row.medecin} size={20}/>
-          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11}}>{row.medecin}</span>
-        </div>
-      );
-      case "effectif": return <span style={{fontWeight:500}}>{row.effectif||"—"}</span>;
-      case "dateFE": return <span style={{color:row.dateFE?"#10B981":"#CBD5E1",fontSize:11}}>{row.dateFE||"—"}</span>;
-      case "anciennete": return(
-        <span style={{fontSize:10,padding:"2px 6px",borderRadius:4,whiteSpace:"nowrap",
-          background:row.anciennete==="Nouvel Adh"?"#EFF6FF":"#F1F5F9",
-          color:row.anciennete==="Nouvel Adh"?"#2563EB":"#64748B",fontWeight:500}}>
-          {row.anciennete==="Nouvel Adh"?"Nouveau":"Ancien"}
-        </span>
-      );
-      case "territoire": return <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row.territoire||"—"}</span>;
-      case "intervenant": return(
-        <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
-          {row.intervenant&&<Avatar name={row.intervenant} size={18}/>}
-          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontSize:11,color:"#64748B"}}>{row.intervenant||"—"}</span>
-        </div>
-      );
-      case "priorite":{
-        const pc=PRIO[row.priorite]||PRIO[3];
-        return(
-          <div style={{display:"flex",alignItems:"center",gap:4}}>
-            <span style={{background:pc.bg,color:pc.color,borderRadius:5,padding:"2px 8px",fontSize:11,fontWeight:700}}>{row.priorite}</span>
-            <span style={{fontSize:9,color:pc.color,opacity:0.7}}>{pc.label}</span>
-          </div>
-        );
+  /* sorting */
+  const rows = useMemo(()=>{
+    const dir = sortD==='asc'?1:-1;
+    const rankKeys = ['rang1','rang2'];
+    return [...base].sort((a,b)=>{
+      let av,bv;
+      if(rankKeys.includes(sortK)){
+        av = getRank(a,sortK); bv = getRank(b,sortK);
+        const ae=!av, be=!bv;
+        if(ae&&be) return 0; if(ae) return 1; if(be) return -1;
+        return (av-bv)*dir;
       }
-      case "_action": return(
-        <button className="btn-create" onClick={e=>{e.stopPropagation();setCreated(p=>new Set([...p,row.id]));showToast(`✓ Intervention créée — ${row.adherent}`);}} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${done?"#86EFAC":"#E2E8F0"}`,background:done?"#F0FDF4":"white",color:done?"#15803D":"#64748B",fontSize:10.5,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s",fontFamily:"inherit"}}>
-          {done?"✓ Créée":"Créer l'intervention"}
-        </button>
-      );
-      default: return <span>{String(row[col.key]||"—")}</span>;
+      av=a[sortK]??''; bv=b[sortK]??'';
+      if(typeof av==='string') return av.localeCompare(bv,'fr')*dir;
+      return (av-bv)*dir;
+    });
+  },[base,dynRanks,sortK,sortD]);
+
+  const totalPages = Math.max(1,Math.ceil(rows.length/PAGE));
+  const paged = rows.slice((page-1)*PAGE, page*PAGE);
+  const nFilters = (fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
+
+  const sort = k => { if(k==='_action') return; setSortK(k); setSortD(p=>k===sortK?(p==='asc'?'desc':'asc'):'asc'); setPage(1); };
+  const reset = () => { setFM('all');setFT('all');setFA('all');setFS('all');setSearch('');setPage(1); };
+  const toast_ = m => { setToast(m); setTimeout(()=>setToast(null),3000); };
+  const create = (row,e) => { e.stopPropagation(); setCreated(p=>new Set([...p,row.id])); toast_(`✓ Créée — ${row.adherent}`); };
+  const openAI = row => {
+    setSelRow(row); setAiOpen(true);
+    setMsgs([{r:'a',c:`Intervention : **${row.adherent}** | ${row.naf}\nPriorité calculée • Effectif : ${row.effectif} • ${row.territoire} • ${row.anciennete}\n\nQue souhaitez-vous analyser ?`}]);
+  };
+  const sendAI = async() => {
+    if(!aiInput.trim()||aiLoad) return;
+    if(!apiKey){setShowKey(true);return;}
+    const h=[...msgs,{r:'u',c:aiInput}];
+    setMsgs(h); setAiInput(''); setAiLoad(true);
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,
+          system:`Assistant Medtra5. Contexte: ${selRow?JSON.stringify(selRow):'aucun'}. Total=${data.length}, filtrés=${rows.length}. Réponds en français, concis.`,
+          messages:h.map(m=>({role:m.r==='u'?'user':'assistant',content:m.c}))})});
+      const d=await res.json();
+      setMsgs([...h,{r:'a',c:d.content?.[0]?.text||'Erreur.'}]);
+    }catch(e){setMsgs([...h,{r:'a',c:'Erreur de connexion.'}]);}
+    setAiLoad(false);
+  };
+
+  const Arrow = ({k}) => <span style={{marginLeft:2,opacity:sortK===k?0.8:0.15}}>{sortK===k?(sortD==='asc'?'↑':'↓'):'↕'}</span>;
+
+  const Cell = ({row,col}) => {
+    const done=created.has(row.id);
+    switch(col.k){
+      case 'adherent': return <div style={{minWidth:0}}><div style={{fontWeight:600,color:'#1E293B',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.adherent}</div></div>;
+      case 'naf': return <div style={{minWidth:0}}><div style={{fontSize:11.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.naf}</div><div style={{fontSize:10,color:'#94A3B8'}}>{row.nafCode}</div></div>;
+      case 'adhesion': return <span style={{color:'#64748B',fontSize:11}}>{row.adhesion||'—'}</span>;
+      case 'medecin': return <div style={{display:'flex',alignItems:'center',gap:5,minWidth:0}}><Av name={row.medecin} size={20}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:11}}>{row.medecin}</span></div>;
+      case 'effectif': return <span style={{fontWeight:500}}>{row.effectif||'—'}</span>;
+      case 'dateFE': return <span style={{color:row.dateFE?'#10B981':'#CBD5E1',fontSize:11}}>{row.dateFE||'—'}</span>;
+      case 'anciennete': return <span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:row.anciennete==='Nouvel Adh'?'#EFF6FF':'#F1F5F9',color:row.anciennete==='Nouvel Adh'?'#2563EB':'#64748B',fontWeight:500,whiteSpace:'nowrap'}}>{row.anciennete==='Nouvel Adh'?'Nouveau':'Ancien'}</span>;
+      case 'territoire': return <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.territoire||'—'}</span>;
+      case 'intervenant': return <div style={{display:'flex',alignItems:'center',gap:5,minWidth:0}}><Av name={row.intervenant} size={18}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:11,color:'#64748B'}}>{row.intervenant||'—'}</span></div>;
+      case 'rang1': return <RangBadge v={getRank(row,'rang1')} color='#1D4ED8' bg='#DBEAFE' animKey={animKey}/>;
+      case 'rang2': return <RangBadge v={getRank(row,'rang2')} color='#9D174D' bg='#FCE7F3' animKey={animKey}/>;
+      case '_action': return <button onClick={e=>create(row,e)} style={{padding:'4px 8px',borderRadius:5,border:`1px solid ${done?'#86EFAC':'#E2E8F0'}`,background:done?'#F0FDF4':'white',color:done?'#15803D':'#64748B',fontSize:10.5,cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit'}}>{done?'✓ Créée':'Créer l\'intervention'}</button>;
+      default: return <span>{String(row[col.k]||'—')}</span>;
     }
   };
 
-  return(
-    <div style={{display:"flex",height:"100vh",overflow:"hidden",fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#EDF1F7"}}>
+  return (
+    <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
 
       {/* SIDEBAR */}
-      {navOpen&&<div style={{width:188,height:"100vh",background:"#0B2040",display:"flex",flexDirection:"column",flexShrink:0}}>
-        <div style={{padding:"12px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:30,height:30,borderRadius:7,background:"#1D6AF5",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+      {navOpen && <div style={{width:188,background:'#0B2040',display:'flex',flexDirection:'column',flexShrink:0}}>
+        <div style={{padding:'13px 14px',borderBottom:'1px solid rgba(255,255,255,0.06)',display:'flex',alignItems:'center',gap:8}}>
+          <div style={{width:30,height:30,borderRadius:7,background:'#1D6AF5',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" fill="white"/><path d="M5 21c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
           </div>
-          <div style={{flex:1}}><div style={{color:"white",fontWeight:700,fontSize:14,letterSpacing:"-0.3px"}}>medtra<span style={{color:"#60A5FA"}}>5</span></div><div style={{color:"rgba(255,255,255,0.3)",fontSize:9,letterSpacing:"0.7px",textTransform:"uppercase"}}>Santé au travail</div></div>
-          <button onClick={()=>setNavOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.25)",fontSize:14}}>‹</button>
+          <div style={{flex:1}}><div style={{color:'white',fontWeight:700,fontSize:14}}>medtra<span style={{color:'#60A5FA'}}>5</span></div><div style={{color:'rgba(255,255,255,0.3)',fontSize:9,letterSpacing:'0.7px',textTransform:'uppercase'}}>Santé au travail</div></div>
+          <button onClick={()=>setNavOpen(false)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.25)',fontSize:14,lineHeight:1}}>‹</button>
         </div>
-        <nav style={{flex:1,padding:"5px 0",overflowY:"auto"}}>
-          {NAV.map(label=>{const on=label===activeNav;return(
-            <button key={label} className="nav-btn" onClick={()=>setActiveNav(label)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"7px 14px",background:on?"rgba(29,106,245,0.2)":"transparent",borderLeft:`3px solid ${on?"#3B82F6":"transparent"}`,color:on?"white":"rgba(255,255,255,0.45)",border:"none",cursor:"pointer",textAlign:"left",fontSize:12,fontWeight:on?600:400,transition:"all 0.1s"}}>{label}</button>
-          );})}
+        <nav style={{flex:1,padding:'5px 0',overflowY:'auto'}}>
+          {NAV.map(l=><button key={l} className={`nav-item${l===nav?' active':''}`} onClick={()=>setNav(l)}>{l}</button>)}
         </nav>
-        <div style={{padding:"10px 14px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <Avatar name="Elise Moreau" size={26}/>
-            <div><div style={{color:"white",fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:"rgba(255,255,255,0.35)",fontSize:10}}>Médecin</div></div>
-          </div>
+        <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,0.06)',display:'flex',alignItems:'center',gap:8}}>
+          <Av name="Elise Moreau" size={26}/><div><div style={{color:'white',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,0.35)',fontSize:10}}>Médecin</div></div>
         </div>
       </div>}
 
       {/* MAIN */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+
         {/* TOPBAR */}
-        <div style={{height:48,background:"#0B2040",display:"flex",alignItems:"center",padding:"0 14px",gap:10,flexShrink:0,borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          {!navOpen&&<button onClick={()=>setNavOpen(true)} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.5)",fontSize:18,marginRight:4}}>☰</button>}
-          <div style={{display:"flex",alignItems:"center",gap:7,background:"rgba(255,255,255,0.07)",borderRadius:7,padding:"5px 10px",flex:1,maxWidth:340}}>
+        <div style={{height:48,background:'#0B2040',display:'flex',alignItems:'center',padding:'0 14px',gap:10,flexShrink:0,borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+          {!navOpen && <button onClick={()=>setNavOpen(true)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.5)',fontSize:18}}>☰</button>}
+          <div style={{display:'flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.07)',borderRadius:7,padding:'5px 10px',flex:1,maxWidth:340}}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Rechercher adhérent, médecin, NAF…" style={{background:"none",border:"none",outline:"none",color:"rgba(255,255,255,0.85)",fontSize:12,flex:1,fontFamily:"inherit"}}/>
-            {search&&<button onClick={()=>{setSearch("");setPage(1);}} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",fontSize:13}}>✕</button>}
+            <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Rechercher…" style={{background:'none',border:'none',outline:'none',color:'rgba(255,255,255,0.85)',fontSize:12,flex:1,fontFamily:'inherit'}}/>
+            {search && <button onClick={()=>{setSearch('');setPage(1);}} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.4)',fontSize:13}}>✕</button>}
           </div>
-          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-            <button onClick={()=>setShowKeyInput(!showKeyInput)} title="Configurer clé API" style={{background:"none",border:"none",cursor:"pointer",fontSize:15,opacity:0.6}}>⚙️</button>
-            <Avatar name="Elise Moreau" size={27}/>
+          <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8}}>
+            <button onClick={()=>setShowKey(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:15,opacity:0.6}}>⚙️</button>
+            <Av name="Elise Moreau" size={27}/>
           </div>
         </div>
 
-        {/* API KEY BAR */}
-        {showKeyInput&&<div style={{background:"#1E3A5F",padding:"8px 14px",display:"flex",alignItems:"center",gap:8,borderBottom:"1px solid rgba(255,255,255,0.1)",flexShrink:0}}>
-          <span style={{color:"rgba(255,255,255,0.7)",fontSize:12,whiteSpace:"nowrap"}}>🔑 Clé API Anthropic :</span>
-          <input defaultValue={apiKey} id="apiKeyInput" type="password" placeholder="sk-ant-..." style={{flex:1,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"4px 10px",color:"white",fontSize:12,outline:"none",fontFamily:"monospace"}}/>
-          <button onClick={()=>saveKey(document.getElementById("apiKeyInput").value)} style={{padding:"4px 12px",background:"#1D6AF5",border:"none",borderRadius:6,color:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>Enregistrer</button>
-          <button onClick={()=>setShowKeyInput(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:16}}>✕</button>
+        {/* API KEY */}
+        {showKey && <div style={{background:'#1E3A5F',padding:'8px 14px',display:'flex',alignItems:'center',gap:8,borderBottom:'1px solid rgba(255,255,255,0.1)',flexShrink:0}}>
+          <span style={{color:'rgba(255,255,255,0.7)',fontSize:12,whiteSpace:'nowrap'}}>🔑 Clé API :</span>
+          <input id="kInput" defaultValue={apiKey} type="password" placeholder="sk-ant-..." style={{flex:1,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',borderRadius:6,padding:'4px 10px',color:'white',fontSize:12,outline:'none',fontFamily:'monospace'}}/>
+          <button onClick={()=>{const k=document.getElementById('kInput').value;setApiKey(k);localStorage.setItem('m5key',k);setShowKey(false);toast_('✓ Clé enregistrée');}} style={{padding:'4px 12px',background:'#1D6AF5',border:'none',borderRadius:6,color:'white',cursor:'pointer',fontSize:12,fontWeight:600}}>OK</button>
+          <button onClick={()=>setShowKey(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:16}}>✕</button>
         </div>}
 
-        <div style={{flex:1,overflow:"auto",padding:12}}>
-          {/* TABLE CARD */}
-          <div style={{background:"white",borderRadius:10,border:"1px solid #E2E8F0",overflow:"hidden"}}>
+        <div style={{flex:1,overflow:'auto',padding:12}}>
+          <div style={{background:'white',borderRadius:10,border:'1px solid #E2E8F0',overflow:'hidden'}}>
+
             {/* TOOLBAR */}
-            <div style={{display:"flex",alignItems:"center",padding:"9px 14px",borderBottom:"1px solid #F1F5F9",gap:8,flexWrap:"wrap"}}>
-              <button onClick={()=>setShowFilters(!showFilters)} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:6,border:`1px solid ${showFilters||activeFiltersCount?"#BFDBFE":"#E2E8F0"}`,background:showFilters||activeFiltersCount?"#EFF6FF":"white",color:showFilters||activeFiltersCount?"#2563EB":"#64748B",cursor:"pointer",fontSize:12,fontWeight:500}}>
-                ⚙ Filtres {activeFiltersCount>0&&<span style={{background:"#3B82F6",color:"white",borderRadius:"50%",width:15,height:15,fontSize:9,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{activeFiltersCount}</span>}
+            <div style={{display:'flex',alignItems:'center',padding:'9px 14px',borderBottom:'1px solid #F1F5F9',gap:8,flexWrap:'wrap'}}>
+              <button onClick={()=>setShowF(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:6,border:`1px solid ${showF||nFilters?'#BFDBFE':'#E2E8F0'}`,background:showF||nFilters?'#EFF6FF':'white',color:showF||nFilters?'#2563EB':'#64748B',cursor:'pointer',fontSize:12,fontWeight:500,fontFamily:'inherit'}}>
+                ⚙ Filtres {nFilters>0 && <span style={{background:'#3B82F6',color:'white',borderRadius:'50%',width:15,height:15,fontSize:9,display:'inline-flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{nFilters}</span>}
               </button>
-              <span style={{fontSize:12,color:"#94A3B8"}}><b style={{color:"#374151"}}>{filtered.length.toLocaleString()}</b> / {data.length.toLocaleString()} interventions</span>
-              <div style={{marginLeft:"auto"}}>
-                <button onClick={()=>{setSelRow(null);setAiOpen(true);setMsgs([]);}} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:7,background:"#1D6AF5",border:"none",color:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>✨ Assistant IA</button>
+              <span style={{fontSize:12,color:'#94A3B8'}}><b style={{color:'#374151'}}>{rows.length.toLocaleString()}</b> / {data.length.toLocaleString()} interventions</span>
+              <div style={{marginLeft:'auto'}}>
+                <button onClick={()=>{setSelRow(null);setAiOpen(true);setMsgs([{r:'a',c:'Bonjour ! Posez vos questions sur les interventions ou la priorisation.'}]);}} style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',borderRadius:7,background:'#1D6AF5',border:'none',color:'white',cursor:'pointer',fontSize:12,fontWeight:600,fontFamily:'inherit'}}>✨ Assistant IA</button>
               </div>
             </div>
 
             {/* FILTERS */}
-            {showFilters&&<div style={{display:"flex",gap:8,padding:"8px 14px",borderBottom:"1px solid #F1F5F9",background:"#FAFBFC",flexWrap:"wrap",alignItems:"center"}}>
-
-              <select value={filterT} onChange={e=>{setFilterT(e.target.value);setPage(1);}} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,color:"#475569",background:"white",outline:"none"}}>
-                <option value="all">Tous territoires</option>
-                {territoires.map(t=><option key={t} value={t}>{t}</option>)}
-              </select>
-              <select value={filterM} onChange={e=>{setFilterM(e.target.value);setPage(1);}} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,color:"#475569",background:"white",outline:"none"}}>
-                <option value="all">Tous médecins</option>
-                {medecins.map(m=><option key={m} value={m}>{m}</option>)}
-              </select>
-              <select value={filterA} onChange={e=>{setFilterA(e.target.value);setPage(1);}} style={{padding:"4px 8px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12,color:"#475569",background:"white",outline:"none"}}>
-                <option value="all">Toute ancienneté</option>
-                <option value="Nouvel Adh">Nouvel adhérent</option>
-                <option value="Ancien Adh">Ancien adhérent</option>
-              </select>
-              <select value={filterSecteur} onChange={e=>{setFilterSecteur(e.target.value);setPage(1);}} style={{padding:"4px 8px",borderRadius:6,border:`1px solid ${filterSecteur!=="all"?"#A78BFA":"#E2E8F0"}`,fontSize:12,color:filterSecteur!=="all"?"#5B21B6":"#475569",background:filterSecteur!=="all"?"#EDE9FE":"white",outline:"none",fontWeight:filterSecteur!=="all"?600:400}}>
-                <option value="all">Tous secteurs d'activité</option>
-                {secteurs.map(s=><option key={s} value={s}>{s}</option>)}
-              </select>
-              {activeFiltersCount>0&&<button onClick={resetFilters} style={{padding:"4px 10px",borderRadius:6,border:"1px solid #FECACA",fontSize:12,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>✕ Réinitialiser</button>}
+            {showF && <div style={{display:'flex',gap:8,padding:'8px 14px',borderBottom:'1px solid #F1F5F9',background:'#FAFBFC',flexWrap:'wrap',alignItems:'center'}}>
+              {[
+                {val:fT, set:v=>{setFT(v);setPage(1);}, opts:territoires, label:'Tous territoires'},
+                {val:fM, set:v=>{setFM(v);setPage(1);}, opts:medecins, label:'Tous médecins'},
+                {val:fA, set:v=>{setFA(v);setPage(1);}, opts:['Nouvel Adh','Ancien Adh'], label:'Toute ancienneté'},
+                {val:fS, set:v=>{setFS(v);setPage(1);}, opts:secteurs, label:'Tous secteurs'},
+              ].map(({val,set,opts,label})=>(
+                <select key={label} value={val} onChange={e=>set(e.target.value)} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${val!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,color:val!=='all'?'#1D4ED8':'#475569',background:val!=='all'?'#EFF6FF':'white',outline:'none',fontWeight:val!=='all'?600:400}}>
+                  <option value="all">{label}</option>
+                  {opts.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              ))}
+              {nFilters>0 && <button onClick={reset} style={{padding:'4px 10px',borderRadius:6,border:'1px solid #FECACA',fontSize:12,color:'#DC2626',background:'#FEF2F2',cursor:'pointer',fontFamily:'inherit'}}>✕ Réinitialiser</button>}
             </div>}
 
             {/* TABLE */}
-            <div style={{overflowX:"auto",overflowY:"auto",maxHeight:"calc(100vh - 280px)"}}>
-              <div style={{minWidth:TOTAL_W+"px"}}>
-                {/* HEADER */}
-                <div style={{display:"flex",background:"#F8FAFC",borderBottom:"2px solid #E2E8F0",position:"sticky",top:0,zIndex:10}}>
+            <div style={{overflowX:'auto',overflowY:'auto',maxHeight:'calc(100vh - 200px)'}}>
+              <div style={{minWidth:TW+'px'}}>
+                {/* HEAD */}
+                <div style={{display:'flex',background:'#F8FAFC',borderBottom:'2px solid #E2E8F0',position:'sticky',top:0,zIndex:10}}>
                   {COLS.map(col=>(
-                    <div key={col.key} className="th" onClick={()=>handleSort(col.key)} style={{width:col.width,minWidth:col.width,justifyContent:col.align==="center"?"center":"flex-start",color:col.headerColor||undefined,background:col.headerBg||undefined}}>
-                      {col.label}{col.key!=="_action"&&<span style={{marginLeft:2,opacity:sortKey===col.key?0.8:0.2}}>{sortKey===col.key?(sortDir==="asc"?"↑":"↓"):"↕"}</span>}
+                    <div key={col.k} className="th" onClick={()=>sort(col.k)} style={{width:col.w,justifyContent:col.center?'center':'flex-start',color:col.hColor,background:col.hBg}}>
+                      {col.label}{col.k!=='_action'&&<Arrow k={col.k}/>}
                     </div>
                   ))}
                 </div>
-
-                {/* ROWS */}
-                {appLoading?(
-                  <div style={{padding:50,textAlign:"center",color:"#94A3B8"}}>Chargement des 7 998 interventions…</div>
-                ):paged.length===0?(
-                  <div style={{padding:40,textAlign:"center",color:"#94A3B8"}}>Aucune intervention trouvée</div>
-                ):paged.map((row,idx)=>{
-                  const done=created.has(row.id);
-                  return(
-                    <div key={String(row.id)} className="row-hover" onClick={()=>openAI(row)} style={{display:"flex",borderBottom:"1px solid #F1F5F9",background:idx%2===0?"white":"#FAFBFC",animation:anyFilterActive?`rowSlideIn 0.38s cubic-bezier(0.25,0.46,0.45,0.94) ${Math.min(idx*22,500)}ms both`:"none"}}>
-                      {COLS.map(col=>(
-                        <div key={col.key} className="td" style={{width:col.width,minWidth:col.width,justifyContent:col.align==="center"?"center":"flex-start"}} onClick={col.key==="_action"?e=>e.stopPropagation():undefined}>
-                          {renderCell(row,col,done)}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
+                {/* BODY */}
+                {loading ? <div style={{padding:50,textAlign:'center',color:'#94A3B8'}}>Chargement…</div>
+                 : paged.length===0 ? <div style={{padding:40,textAlign:'center',color:'#94A3B8'}}>Aucun résultat</div>
+                 : paged.map((row,idx)=>(
+                  <div key={String(row.id)} className="row" onClick={()=>openAI(row)}
+                    style={{background:idx%2===0?'white':'#FAFBFC', animation:anyFilter?`slideIn 0.32s ease ${Math.min(idx*18,450)}ms both`:'none'}}>
+                    {COLS.map(col=>(
+                      <div key={col.k} className="td" style={{width:col.w,justifyContent:col.center?'center':'flex-start'}} onClick={col.k==='_action'?e=>e.stopPropagation():undefined}>
+                        <Cell row={row} col={col}/>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* PAGINATION */}
-            {totalPages>1&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderTop:"1px solid #F1F5F9",background:"#FAFBFC",flexShrink:0}}>
-              <span style={{fontSize:12,color:"#94A3B8"}}>Page {page} / {totalPages} — {filtered.length.toLocaleString()} résultats</span>
-              <div style={{display:"flex",gap:4}}>
-                {[{l:"«",a:()=>setPage(1),dis:page===1},{l:"‹",a:()=>setPage(p=>Math.max(1,p-1)),dis:page===1},{l:"›",a:()=>setPage(p=>Math.min(totalPages,p+1)),dis:page===totalPages},{l:"»",a:()=>setPage(totalPages),dis:page===totalPages}].map(({l,a,dis})=>(
-                  <button key={l} onClick={a} disabled={dis} style={{padding:"4px 9px",borderRadius:5,border:"1px solid #E2E8F0",background:dis?"#F8FAFC":"white",color:dis?"#CBD5E1":"#475569",cursor:dis?"default":"pointer",fontSize:13}}>{l}</button>
+            {totalPages>1 && <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 14px',borderTop:'1px solid #F1F5F9',background:'#FAFBFC'}}>
+              <span style={{fontSize:12,color:'#94A3B8'}}>Page {page} / {totalPages} — {rows.length.toLocaleString()} résultats</span>
+              <div style={{display:'flex',gap:4}}>
+                {[['«',()=>setPage(1),page===1],['‹',()=>setPage(p=>Math.max(1,p-1)),page===1],['›',()=>setPage(p=>Math.min(totalPages,p+1)),page===totalPages],['»',()=>setPage(totalPages),page===totalPages]].map(([l,a,dis])=>(
+                  <button key={l} onClick={a} disabled={dis} style={{padding:'4px 9px',borderRadius:5,border:'1px solid #E2E8F0',background:dis?'#F8FAFC':'white',color:dis?'#CBD5E1':'#475569',cursor:dis?'default':'pointer',fontSize:13,fontFamily:'inherit'}}>{l}</button>
                 ))}
-                <span style={{display:"flex",alignItems:"center",gap:4,marginLeft:4}}>
-                  {[...Array(Math.min(5,totalPages))].map((_,i)=>{
-                    const p=Math.max(1,Math.min(totalPages-4,page-2))+i;
-                    if(p<1||p>totalPages)return null;
-                    return <button key={p} onClick={()=>setPage(p)} style={{padding:"4px 8px",borderRadius:5,border:"1px solid",borderColor:p===page?"#3B82F6":"#E2E8F0",background:p===page?"#3B82F6":"white",color:p===page?"white":"#475569",cursor:"pointer",fontSize:12,fontWeight:p===page?600:400}}>{p}</button>;
-                  })}
-                </span>
+                {[...Array(Math.min(5,totalPages))].map((_,i)=>{
+                  const p=Math.max(1,Math.min(totalPages-4,page-2))+i;
+                  if(p<1||p>totalPages) return null;
+                  return <button key={p} onClick={()=>setPage(p)} style={{padding:'4px 8px',borderRadius:5,border:'1px solid',borderColor:p===page?'#3B82F6':'#E2E8F0',background:p===page?'#3B82F6':'white',color:p===page?'white':'#475569',cursor:'pointer',fontSize:12,fontWeight:p===page?600:400,fontFamily:'inherit'}}>{p}</button>;
+                })}
               </div>
             </div>}
           </div>
@@ -449,42 +356,31 @@ function App(){
       </div>
 
       {/* AI PANEL */}
-      {aiOpen&&<div style={{width:300,height:"100vh",background:"white",borderLeft:"1px solid #E2E8F0",display:"flex",flexDirection:"column",flexShrink:0,animation:"slideIn 0.2s ease-out"}}>
-        <div style={{padding:"11px 14px",background:"#1D6AF5",display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:28,height:28,borderRadius:7,background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>✨</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{color:"white",fontWeight:700,fontSize:13}}>Assistant IA</div>
-            {selRow&&<div style={{color:"rgba(255,255,255,0.65)",fontSize:10,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selRow.adherent}</div>}
-          </div>
-          <button onClick={()=>setAiOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.7)",fontSize:18,lineHeight:1}}>✕</button>
+      {aiOpen && <div style={{width:300,background:'white',borderLeft:'1px solid #E2E8F0',display:'flex',flexDirection:'column',flexShrink:0}}>
+        <div style={{padding:'11px 14px',background:'#1D6AF5',display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:16}}>✨</span>
+          <div style={{flex:1,minWidth:0}}><div style={{color:'white',fontWeight:700,fontSize:13}}>Assistant IA</div>{selRow&&<div style={{color:'rgba(255,255,255,0.65)',fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{selRow.adherent}</div>}</div>
+          <button onClick={()=>setAiOpen(false)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.7)',fontSize:18,lineHeight:1}}>✕</button>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:11,display:"flex",flexDirection:"column",gap:8}}>
-          {msgs.length===0&&<div style={{textAlign:"center",padding:"14px 6px"}}>
-            <div style={{fontSize:26,marginBottom:6}}>🏥</div>
-            <div style={{fontSize:13,fontWeight:600,color:"#374151",marginBottom:4}}>Assistant Medtra5</div>
-            {!apiKey&&<div style={{background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:8,padding:"8px 10px",fontSize:11,color:"#92400E",marginBottom:8}}>⚠️ Configurez la clé API via ⚙️ en haut</div>}
-            <div style={{fontSize:11,color:"#94A3B8",marginBottom:10,lineHeight:1.5}}>Cliquez sur une ligne pour analyser une intervention.</div>
-            {["Quels sont les adhérents les plus urgents ?","Combien de nouveaux adhérents en P1 ?","Résume les interventions par territoire"].map(q=>(
-              <button key={q} onClick={()=>setInput(q)} style={{display:"block",width:"100%",padding:"6px 10px",borderRadius:7,border:"1px solid #E2E8F0",background:"#F8FAFC",color:"#374151",fontSize:11,cursor:"pointer",textAlign:"left",marginBottom:4,fontFamily:"inherit"}}>{q}</button>
-            ))}
-          </div>}
+        <div style={{flex:1,overflowY:'auto',padding:11,display:'flex',flexDirection:'column',gap:8}}>
+          {!apiKey && <div style={{background:'#FEF3C7',border:'1px solid #FDE68A',borderRadius:8,padding:'8px 10px',fontSize:11,color:'#92400E'}}>⚠️ Configurez la clé API via ⚙️</div>}
           {msgs.map((m,i)=>(
-            <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
-              <div style={{maxWidth:"90%",padding:"8px 11px",borderRadius:10,background:m.role==="user"?"#1D6AF5":"#F1F5F9",color:m.role==="user"?"white":"#374151",fontSize:12,lineHeight:1.6,borderBottomRightRadius:m.role==="user"?3:10,borderBottomLeftRadius:m.role==="assistant"?3:10,whiteSpace:"pre-wrap"}}>{m.content}</div>
+            <div key={i} style={{display:'flex',justifyContent:m.r==='u'?'flex-end':'flex-start'}}>
+              <div style={{maxWidth:'90%',padding:'8px 11px',borderRadius:10,background:m.r==='u'?'#1D6AF5':'#F1F5F9',color:m.r==='u'?'white':'#374151',fontSize:12,lineHeight:1.6,whiteSpace:'pre-wrap',borderBottomRightRadius:m.r==='u'?3:10,borderBottomLeftRadius:m.r==='a'?3:10}}>{m.c.replace(/\*\*/g,'')}</div>
             </div>
           ))}
-          {aiLoading&&<div style={{display:"flex"}}><div style={{padding:"8px 12px",borderRadius:10,background:"#F1F5F9",fontSize:12,color:"#94A3B8"}}>En réflexion…</div></div>}
+          {aiLoad && <div style={{padding:'8px 12px',borderRadius:10,background:'#F1F5F9',fontSize:12,color:'#94A3B8',alignSelf:'flex-start'}}>En réflexion…</div>}
           <div ref={endRef}/>
         </div>
-        <div style={{padding:"9px 11px",borderTop:"1px solid #F1F5F9"}}>
-          <div style={{display:"flex",gap:6,alignItems:"flex-end",background:"#F8FAFC",borderRadius:10,padding:"7px 10px",border:"1px solid #E2E8F0"}}>
-            <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendAI();}}} placeholder="Votre question…" rows={1} style={{flex:1,background:"none",border:"none",outline:"none",fontSize:12,color:"#374151",resize:"none",fontFamily:"inherit",lineHeight:1.5}}/>
-            <button onClick={sendAI} disabled={aiLoading||!input.trim()} style={{width:27,height:27,borderRadius:6,background:input.trim()?"#1D6AF5":"#E2E8F0",border:"none",cursor:input.trim()?"pointer":"default",color:"white",fontSize:13,flexShrink:0}}>➤</button>
+        <div style={{padding:'9px 11px',borderTop:'1px solid #F1F5F9'}}>
+          <div style={{display:'flex',gap:6,alignItems:'flex-end',background:'#F8FAFC',borderRadius:10,padding:'7px 10px',border:'1px solid #E2E8F0'}}>
+            <textarea value={aiInput} onChange={e=>setAiInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAI();}}} placeholder="Votre question…" rows={1} style={{flex:1,background:'none',border:'none',outline:'none',fontSize:12,color:'#374151',resize:'none',fontFamily:'inherit',lineHeight:1.5}}/>
+            <button onClick={sendAI} disabled={aiLoad||!aiInput.trim()} style={{width:27,height:27,borderRadius:6,background:aiInput.trim()?'#1D6AF5':'#E2E8F0',border:'none',cursor:aiInput.trim()?'pointer':'default',color:'white',fontSize:13,flexShrink:0,fontFamily:'inherit'}}>➤</button>
           </div>
         </div>
       </div>}
 
-      {toast&&<div style={{position:"fixed",bottom:20,left:"50%",transform:"translateX(-50%)",background:"#1E293B",color:"white",padding:"10px 18px",borderRadius:8,fontSize:13,fontWeight:500,boxShadow:"0 4px 24px rgba(0,0,0,0.15)",zIndex:1000,whiteSpace:"nowrap",animation:"fadeUp 0.2s"}}>{toast}</div>}
+      {toast && <div style={{position:'fixed',bottom:20,left:'50%',transform:'translateX(-50%)',background:'#1E293B',color:'white',padding:'10px 18px',borderRadius:8,fontSize:13,fontWeight:500,zIndex:1000,whiteSpace:'nowrap'}}>{toast}</div>}
     </div>
   );
 }
