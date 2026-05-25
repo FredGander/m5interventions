@@ -131,7 +131,7 @@ function App(){
 
   /* Dynamic ranks — inline */
   const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||!!search.trim();
-  const dr=anyF?calcRanks(base):null;
+  let dr=null;if(anyF){try{dr=calcRanks(base);}catch(e){console.error('calcRanks error:',e);dr=null;}}
 
   /* Sort — inline */
   const dir=sd==='asc'?1:-1;
@@ -140,12 +140,18 @@ function App(){
     if(isRk){const e=dr?dr[String(r.id)]:null;return e?(sk==='rang1'?e.r1:e.r2):(r[sk]||null);}
     return r[sk]??'';
   };
-  const rows=[...base].sort((a,b)=>{
-    const av=getV(a),bv=getV(b);
-    if(isRk){if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;return(av-bv)*dir;}
-    if(typeof av==='string')return av.localeCompare(bv,'fr')*dir;
-    return(av-bv)*dir;
-  });
+  let rows=base;
+  try{
+    rows=[...base].sort((a,b)=>{
+      try{
+        const av=getV(a),bv=getV(b);
+        if(isRk){if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;return(Number(av)-Number(bv))*dir;}
+        const as=String(av||''),bs=String(bv||'');
+        if(as&&bs)return as.localeCompare(bs,'fr')*dir;
+        return 0;
+      }catch(e){return 0;}
+    });
+  }catch(e){console.error('sort error:',e);rows=[...base];}
 
 
 
@@ -190,7 +196,7 @@ function App(){
       const color=k==='rang1'?'#1D4ED8':'#9D174D';
       const bg=k==='rang1'?'#DBEAFE':'#FCE7F3';
       if(!v)return <span style={{color:'#CBD5E1'}}>—</span>;
-      return <span key={`${animK}-${k}-${v}`} style={{fontWeight:700,color,background:bg,borderRadius:5,padding:'2px 8px',fontSize:11,display:'inline-block',animation:`popIn .3s cubic-bezier(.34,1.56,.64,1) ${Math.min(v*15,500)}ms both`}}>{v}</span>;
+      return <span key={`b-${String(row.id)}-${k}`} style={{fontWeight:700,color,background:bg,borderRadius:5,padding:'2px 8px',fontSize:11,display:'inline-block'}}>{v}</span>;
     }
     if(k==='_act')return <button onClick={e=>mkCreate(row,e)} style={{padding:'4px 8px',borderRadius:5,border:`1px solid ${isDone?'#86EFAC':'#E2E8F0'}`,background:isDone?'#F0FDF4':'white',color:isDone?'#15803D':'#64748B',fontSize:10.5,cursor:'pointer',whiteSpace:'nowrap'}}>
       {isDone?'✓ Créée':'Créer l\'intervention'}</button>;
@@ -331,6 +337,10 @@ function App(){
     </div>
   );
 }
+window.onerror=(msg,src,line,col,err)=>{
+  const el=document.getElementById('root');
+  if(el)el.innerHTML='<div style="padding:20px;font-family:monospace;color:red"><b>Erreur JS :</b><br>'+msg+'<br>'+(err&&err.stack?err.stack.replace(/</g,'&lt;'):'')+'</div>';
+};
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
