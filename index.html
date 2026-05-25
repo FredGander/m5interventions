@@ -16,6 +16,12 @@ body{font-family:'DM Sans','Segoe UI',sans-serif;overflow:hidden}
 ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px}
 ::-webkit-scrollbar-track{background:transparent}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes rankReveal{0%{transform:scale(0.4);opacity:0;filter:brightness(2)}60%{transform:scale(1.18)}100%{transform:scale(1);opacity:1;filter:brightness(1)}}
+@keyframes rowFlash{0%{background:#EFF6FF}60%{background:#EFF6FF}100%{background:inherit}}
+@keyframes rankEmpty{0%{opacity:0;transform:translateX(-4px)}100%{opacity:1;transform:translateX(0)}}
+.rank-badge{animation:rankReveal 0.35s cubic-bezier(.34,1.56,.64,1) both}
+.rank-empty{animation:rankEmpty 0.2s ease both}
+.row-animating{animation:rowFlash 0.6s ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 .nav-btn:hover{background:rgba(255,255,255,0.07)!important;color:rgba(255,255,255,0.85)!important}
@@ -147,6 +153,8 @@ function App(){
   const [showKeyInput,setShowKeyInput]=useState(false);
   const [navOpen,setNavOpen]=useState(true);
   const [filterSecteur,setFilterSecteur]=useState('all');
+  const [animKey,setAnimKey]=useState(0);
+  const [animatingRows,setAnimatingRows]=useState(new Set());
   const endRef=useRef(null);
 
   useEffect(()=>{
@@ -154,6 +162,15 @@ function App(){
   },[]);
 
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"})},[msgs]);
+  useEffect(()=>{
+    if(!anyFilterActive)return;
+    setAnimKey(k=>k+1);
+    // Marquer les lignes visibles comme animating pour le flash de fond
+    const ids=new Set(filtered.slice(0,PAGE_SIZE).map(r=>r.id));
+    setAnimatingRows(ids);
+    const t=setTimeout(()=>setAnimatingRows(new Set()),800);
+    return()=>clearTimeout(t);
+  },[dynamicRanks]);
 
   const medecins=useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=="nan"))].sort(),[data]);
   const secteurs=useMemo(()=>{
@@ -164,17 +181,35 @@ function App(){
   const territoires=useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=="nan"))].sort(),[data]);
   const statsP=useMemo(()=>({1:data.filter(r=>r.priorite===1).length,2:data.filter(r=>r.priorite===2).length,3:data.filter(r=>r.priorite===3).length}),[data]);
 
-  const filtered=useMemo(()=>{
+  // 1. Filtrage seul (sans tri) → base pour le recalcul des rangs
+  const filteredBase=useMemo(()=>{
     let d=data;
     if(filterM!=="all")d=d.filter(r=>r.medecin===filterM);
     if(filterT!=="all")d=d.filter(r=>r.territoire===filterT);
     if(filterA!=="all")d=d.filter(r=>r.anciennete===filterA);
     if(filterSecteur!=="all")d=d.filter(r=>getNafSection(r.nafCode)===filterSecteur);
     if(search.trim()){const q=search.toLowerCase();d=d.filter(r=>r.adherent?.toLowerCase().includes(q)||r.medecin?.toLowerCase().includes(q)||r.territoire?.toLowerCase().includes(q)||r.naf?.toLowerCase().includes(q)||r.intervenant?.toLowerCase().includes(q));}
+    return d;
+  },[data,filterM,filterT,filterA,filterSecteur,search]);
+
+  // 2. Recalcul des rangs sur le sous-ensemble filtré
+  const anyFilterActive=filterM!=="all"||filterT!=="all"||filterA!=="all"||filterSecteur!=="all"||search.trim()!=="";
+  const dynamicRanks=useMemo(()=>anyFilterActive?computeRanks(filteredBase):null,[filteredBase,anyFilterActive]);
+
+  // 3. Tri : utilise les rangs dynamiques si actifs, sinon les rangs globaux
+  const filtered=useMemo(()=>{
     const dir=sortDir==="asc"?1:-1;
     const emptyLast=["rang1","rang2"].includes(sortKey);
-    return [...d].sort((a,b)=>{
-      const av=a[sortKey],bv=b[sortKey];
+    return [...filteredBase].sort((a,b)=>{
+      // Récupérer la valeur de tri : rang dynamique si dispo, sinon rang global
+      const getVal=(r)=>{
+        if(emptyLast&&dynamicRanks){
+          if(sortKey==="rang1")return dynamicRanks[r.id]?.rang1??null;
+          if(sortKey==="rang2")return dynamicRanks[r.id]?.rang2??null;
+        }
+        return r[sortKey];
+      };
+      const av=getVal(a),bv=getVal(b);
       if(emptyLast){
         const ae=!av||av===0,be=!bv||bv===0;
         if(ae&&be)return 0;
@@ -186,10 +221,7 @@ function App(){
       if(typeof avv==="string")return avv.localeCompare(bvv,"fr")*dir;
       return(avv-bvv)*dir;
     });
-  },[data,filterM,filterT,filterA,filterSecteur,search,sortKey,sortDir]);
-
-  const anyFilterActive=filterM!=="all"||filterT!=="all"||filterA!=="all"||filterSecteur!=="all"||search.trim()!=="";
-  const dynamicRanks=useMemo(()=>anyFilterActive?computeRanks(filtered):null,[filtered,anyFilterActive]);
+  },[filteredBase,dynamicRanks,sortKey,sortDir]);
 
   const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
   const paged=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
@@ -232,8 +264,8 @@ function App(){
 
   const renderCell=(row,col,done)=>{
     switch(col.key){
-      case "rang1":{const v=dynamicRanks?dynamicRanks[row.id]?.rang1:row.rang1;return v?<span style={{fontWeight:700,color:"#1D4ED8",background:"#DBEAFE",borderRadius:5,padding:"2px 8px",fontSize:11}}>{v}</span>:<span style={{color:"#CBD5E1"}}>—</span>;}
-      case "rang2":{const v=dynamicRanks?dynamicRanks[row.id]?.rang2:row.rang2;return v?<span style={{fontWeight:700,color:"#9D174D",background:"#FCE7F3",borderRadius:5,padding:"2px 8px",fontSize:11}}>{v}</span>:<span style={{color:"#CBD5E1"}}>—</span>;}
+      case "rang1":{const v=dynamicRanks?dynamicRanks[row.id]?.rang1:row.rang1;return v?<span key={`r1-${animKey}-${v}`} className="rank-badge" style={{fontWeight:700,color:"#1D4ED8",background:"#DBEAFE",borderRadius:5,padding:"2px 8px",fontSize:11,animationDelay:`${Math.min(v*18,600)}ms`,display:"inline-block"}}>{v}</span>:<span className="rank-empty" key={`r1e-${animKey}-${row.id}`} style={{color:"#CBD5E1"}}>—</span>;}
+      case "rang2":{const v=dynamicRanks?dynamicRanks[row.id]?.rang2:row.rang2;return v?<span key={`r2-${animKey}-${v}`} className="rank-badge" style={{fontWeight:700,color:"#9D174D",background:"#FCE7F3",borderRadius:5,padding:"2px 8px",fontSize:11,animationDelay:`${Math.min(v*18,600)}ms`,display:"inline-block"}}>{v}</span>:<span className="rank-empty" key={`r2e-${animKey}-${row.id}`} style={{color:"#CBD5E1"}}>—</span>;}
       case "adherent": return(
         <div style={{minWidth:0}}>
           <div style={{fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row.adherent}</div>
@@ -387,7 +419,7 @@ function App(){
                 ):paged.map((row,idx)=>{
                   const done=created.has(row.id);
                   return(
-                    <div key={row.id||idx} className="row-hover" onClick={()=>openAI(row)} style={{display:"flex",borderBottom:"1px solid #F1F5F9",background:idx%2===0?"white":"#FAFBFC",transition:"background 0.1s"}}>
+                    <div key={row.id||idx} className={`row-hover${animatingRows.has(row.id)?" row-animating":""}`} onClick={()=>openAI(row)} style={{display:"flex",borderBottom:"1px solid #F1F5F9",background:idx%2===0?"white":"#FAFBFC",animationDelay:`${idx*12}ms`,animationFillMode:"both"}}>
                       {COLS.map(col=>(
                         <div key={col.key} className="td" style={{width:col.width,minWidth:col.width,justifyContent:col.align==="center"?"center":"flex-start"}} onClick={col.key==="_action"?e=>e.stopPropagation():undefined}>
                           {renderCell(row,col,done)}
