@@ -111,54 +111,43 @@ function App(){
   const [aiIn,setAiIn]=useState('');
   const [aiLoad,setAiLoad]=useState(false);
   const [animK,setAnimK]=useState(0);
-  const prevRanks=useRef(null);
   const endRef=useRef(null);
 
   useEffect(()=>{fetch('./data.json').then(r=>r.json()).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'});},[msgs]);
 
-  /* All computation in one useMemo — no closure issues */
-  const computed=useMemo(()=>{
-    /* 1. lists */
-    const meds=[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=='nan'))].sort();
-    const ters=[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=='nan'))].sort();
-    const secs=(()=>{const s=new Set();data.forEach(r=>{const x=getSec(r.nafCode);if(x)s.add(x);});return[...s].sort();})();
+  /* Lists — memoized on data only */
+  const meds=useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=='nan'))].sort(),[data]);
+  const ters=useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=='nan'))].sort(),[data]);
+  const secs=useMemo(()=>{const s=new Set();data.forEach(r=>{const x=getSec(r.nafCode);if(x)s.add(x);});return[...s].sort();},[data]);
 
-    /* 2. filter */
-    let base=data;
-    if(fM!=='all')base=base.filter(r=>r.medecin===fM);
-    if(fT!=='all')base=base.filter(r=>r.territoire===fT);
-    if(fA!=='all')base=base.filter(r=>r.anciennete===fA);
-    if(fS!=='all')base=base.filter(r=>getSec(r.nafCode)===fS);
-    if(search.trim()){const q=search.toLowerCase();base=base.filter(r=>r.adherent?.toLowerCase().includes(q)||r.medecin?.toLowerCase().includes(q)||r.territoire?.toLowerCase().includes(q)||r.naf?.toLowerCase().includes(q)||r.intervenant?.toLowerCase().includes(q));}
+  /* Filter — inline, no memo */
+  let base=data;
+  if(fM!=='all')base=base.filter(r=>r.medecin===fM);
+  if(fT!=='all')base=base.filter(r=>r.territoire===fT);
+  if(fA!=='all')base=base.filter(r=>r.anciennete===fA);
+  if(fS!=='all')base=base.filter(r=>getSec(r.nafCode)===fS);
+  if(search.trim()){const q=search.toLowerCase();base=base.filter(r=>r.adherent?.toLowerCase().includes(q)||r.medecin?.toLowerCase().includes(q)||r.territoire?.toLowerCase().includes(q)||r.naf?.toLowerCase().includes(q)||r.intervenant?.toLowerCase().includes(q));}
 
-    /* 3. dynamic ranks */
-    const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||!!search.trim();
-    const dr=anyF?calcRanks(base):null;
+  /* Dynamic ranks — inline */
+  const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||!!search.trim();
+  const dr=anyF?calcRanks(base):null;
 
-    /* 4. sort */
-    const dir=sd==='asc'?1:-1;
-    const isR=sk==='rang1'||sk==='rang2';
-    const getV=r=>{
-      if(isR){const e=dr?dr[String(r.id)]:null;const v=e?(sk==='rang1'?e.r1:e.r2):(r[sk]||null);return v;}
-      return r[sk]??'';
-    };
-    const rows=[...base].sort((a,b)=>{
-      const av=getV(a),bv=getV(b);
-      if(isR){if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;return(av-bv)*dir;}
-      if(typeof av==='string')return av.localeCompare(bv,'fr')*dir;
-      return(av-bv)*dir;
-    });
+  /* Sort — inline */
+  const dir=sd==='asc'?1:-1;
+  const isRk=sk==='rang1'||sk==='rang2';
+  const getV=r=>{
+    if(isRk){const e=dr?dr[String(r.id)]:null;return e?(sk==='rang1'?e.r1:e.r2):(r[sk]||null);}
+    return r[sk]??'';
+  };
+  const rows=[...base].sort((a,b)=>{
+    const av=getV(a),bv=getV(b);
+    if(isRk){if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;return(av-bv)*dir;}
+    if(typeof av==='string')return av.localeCompare(bv,'fr')*dir;
+    return(av-bv)*dir;
+  });
 
-    return {meds,ters,secs,rows,dr,anyF};
-  },[data,fM,fT,fA,fS,search,sk,sd]);
 
-  const {meds,ters,secs,rows,dr,anyF}=computed;
-
-  /* animation trigger */
-  useEffect(()=>{
-    if(dr!==prevRanks.current){if(dr)setAnimK(k=>k+1);prevRanks.current=dr;}
-  },[dr]);
 
   const totalP=Math.max(1,Math.ceil(rows.length/PAGE));
   const paged=rows.slice((page-1)*PAGE,page*PAGE);
