@@ -87,7 +87,7 @@ const COLS=[
 ];
 const TW=COLS.reduce((s,c)=>s+c.w,0);
 
-export default function App(){
+function App(){
   const [data,setData]=useState([]);
   const [loading,setLoading]=useState(true);
   const [nav,setNav]=useState('Interventions');
