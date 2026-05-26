@@ -95,6 +95,7 @@ function App(){
   const [fT,setFT]=useState('all');
   const [fA,setFA]=useState('all');
   const [fS,setFS]=useState('all');
+  const [fI,setFI]=useState('all');
   const [sort,setSort]=useState({k:'rang1',d:'asc',v:0});
   const sk=sort.k;
   const sd=sort.d;
@@ -117,19 +118,21 @@ function App(){
 
   /* Listes pour les selects — seuls éléments memoizés */
   const meds=useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=='nan'))].sort(),[data]);
+  const ints =useMemo(()=>[...new Set(data.map(r=>r.intervenant).filter(i=>i&&i!=='nan'&&i.trim()!==''))].sort(),[data]);
   const ters =useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=='nan'))].sort(),[data]);
   const secs =useMemo(()=>[...new Set(data.map(r=>sec(r.nafCode)).filter(Boolean))].sort(),[data]);
 
   /* ── Tout dans un seul useMemo — aucun risque de boucle ou cache incohérent ── */
   const result=useMemo(()=>{
     const sk=sort.k;const sd=sort.d;
-    const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||!!search.trim();
+    const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||fI!=='all'||!!search.trim();
     // Filtrage
     let base=data;
     if(fM!=='all')base=base.filter(r=>r.medecin===fM);
     if(fT!=='all')base=base.filter(r=>r.territoire===fT);
     if(fA!=='all')base=base.filter(r=>r.anciennete===fA);
     if(fS!=='all')base=base.filter(r=>sec(r.nafCode)===fS);
+    if(fI!=='all')base=base.filter(r=>r.intervenant===fI);
     if(search.trim()){const q=search.toLowerCase();base=base.filter(r=>(r.adherent||'').toLowerCase().includes(q)||(r.medecin||'').toLowerCase().includes(q)||(r.territoire||'').toLowerCase().includes(q)||(r.naf||'').toLowerCase().includes(q));}
     // Rangs dynamiques
     const ranks=anyF?buildRanks(base):null;
@@ -156,15 +159,15 @@ function App(){
       });
     }
     return {sorted,base,anyF};
-  },[data,fM,fT,fA,fS,search,sort]);
+  },[data,fM,fT,fA,fS,fI,search,sort]);
 
   const {sorted,base,anyF}=result;
   const totalP=Math.max(1,Math.ceil(sorted.length/PAGE));
   const paged=sorted.slice((page-1)*PAGE,page*PAGE);
-  const nF=(fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
+  const nF=(fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(fI!=='all'?1:0)+(search?1:0);
 
   const doSort=k=>{if(k==='_act')return;setSort(prev=>({k,d:k===prev.k?(prev.d==='asc'?'desc':'asc'):'asc',v:prev.v+1}));setPage(1);};
-  const reset=()=>{setFM('all');setFT('all');setFA('all');setFS('all');setSearch('');setPage(1);};
+  const reset=()=>{setFM('all');setFT('all');setFA('all');setFS('all');setFI('all');setSearch('');setPage(1);};
   const mkToast=m=>{setToast(m);setTimeout(()=>setToast(null),3000);};
   const openAI=row=>{setSelRow(row);setAiOpen(true);setMsgs([{r:'a',c:`${row.adherent} | ${row.naf}\nEffectif : ${row.effectif} • ${row.territoire} • ${row.anciennete}\n\nQue souhaitez-vous analyser ?`}]);};
   const sendAI=async()=>{
@@ -212,7 +215,7 @@ function App(){
         </nav>
         <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
           <Av name="Elise Moreau" sz={26}/>
-          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.8</div></div>
+          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.9</div></div>
         </div>
       </div>}
 
@@ -267,6 +270,10 @@ function App(){
               <select value={fS} onChange={e=>{setFS(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fS!=='all'?'#A78BFA':'#E2E8F0'}`,fontSize:12,background:fS!=='all'?'#EDE9FE':'white',color:fS!=='all'?'#5B21B6':'#475569',outline:'none',fontWeight:fS!=='all'?600:400}}>
                 <option value="all">Tous secteurs</option>
                 {secs.map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+              <select value={fI} onChange={e=>{setFI(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fI!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fI!=='all'?'#EFF6FF':'white',color:fI!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fI!=='all'?600:400}}>
+                <option value="all">Tous intervenants</option>
+                {ints.map(o=><option key={o} value={o}>{o}</option>)}
               </select>
               {nF>0&&<button onClick={reset} style={{padding:'4px 10px',borderRadius:6,border:'1px solid #FECACA',fontSize:12,color:'#DC2626',background:'#FEF2F2',cursor:'pointer'}}>✕ Réinitialiser</button>}
             </div>}
