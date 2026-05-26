@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Medtra5 — Interventions</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#EDF1F7;overflow:hidden}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px}
+.ni{width:100%;padding:7px 14px;border:none;border-left:3px solid transparent;background:transparent;color:rgba(255,255,255,0.45);font-size:12px;cursor:pointer;text-align:left;font-family:inherit}
+.ni:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.8)}
+.ni.on{background:rgba(29,106,245,.2);border-left-color:#3B82F6;color:#fff;font-weight:600}
+.th{padding:8px;font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;display:flex;align-items:center;white-space:nowrap;border-right:1px solid #F1F5F9;flex-shrink:0}
+.th:hover{background:#EFF6FF;color:#2563EB}
+.td{padding:9px 8px;font-size:12px;color:#374151;display:flex;align-items:center;border-right:1px solid #F8FAFC;overflow:hidden;flex-shrink:0}
+.row{display:flex;border-bottom:1px solid #F1F5F9;cursor:pointer;transition:background .1s}
+.row:hover{background:#EEF4FF!important}
+select,input,button,textarea{font-family:inherit}
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useMemo,useRef}=React;
+const PAGE=50;
+
+const SECS={"01":"Agriculture","02":"Agriculture","03":"Agriculture","05":"Ind.extract.","06":"Ind.extract.","07":"Ind.extract.","08":"Ind.extract.","09":"Ind.extract.","10":"Ind.alim.","11":"Ind.alim.","12":"Ind.alim.","13":"Textile","14":"Textile","15":"Cuir","16":"Bois","17":"Papier","18":"Imprimerie","19":"Pétrole","20":"Chimie","21":"Pharma","22":"Plastique","23":"Minéraux","24":"Métallurgie","25":"Métal","26":"Électronique","27":"Électrique","28":"Machines","29":"Auto","30":"Transport","31":"Mobilier","32":"Manuf.","33":"Réparation","35":"Énergie","36":"Eau","37":"Eau","38":"Eau","39":"Eau","41":"Construction","42":"Construction","43":"Construction","45":"Commerce auto","46":"Commerce gros","47":"Commerce détail","49":"Transport","50":"Transport","51":"Transport","52":"Transport","53":"Transport","55":"Hôtellerie","56":"Restauration","58":"Édition","59":"Audiovisuel","60":"Audiovisuel","61":"Télécoms","62":"Informatique","63":"Serv.info","64":"Finance","65":"Assurance","66":"Finance","68":"Immobilier","69":"Juridique","70":"Conseil","71":"Ingénierie","72":"Recherche","73":"Pub","74":"Spécialisé","75":"Vétérinaire","77":"Location","78":"RH","79":"Tourisme","80":"Sécurité","81":"Bâtiment","82":"Admin.serv.","84":"Admin.pub.","85":"Enseignement","86":"Santé","87":"Médico-soc.","88":"Action soc.","90":"Arts","91":"Arts","92":"Jeux","93":"Sports","94":"Associations","95":"Réparation","96":"Autres serv.","97":"Ménages","98":"Ménages"};
+const sec=c=>{if(!c)return null;return SECS[c.replace('.','').substring(0,2)]||null;};
+const pd=s=>{if(!s)return 0;const p=s.split('/');return p.length===3?new Date(+p[2],+p[1]-1,+p[0]).getTime():0;};
+
+/* Calcule les rangs dynamiques sur un sous-ensemble filtré.
+   Retourne un tableau parallèle à `base` avec {r1, r2} pour chaque ligne. */
+function buildRanks(base){
+  const out=base.map(()=>({r1:null,r2:null}));
+  const a1=[],a2=[];
+  base.forEach((row,i)=>{
+    const eff=Number(row.effectif)||0;
+    const dt=pd(row.dateFE)||pd(row.adhesion);
+    if(!dt||eff<=0)return;
+    if(eff>2)a1.push({i,anc:row.anciennete,dt});
+    else if(eff>=1&&eff<=2)a2.push({i,anc:row.anciennete,dt});
+  });
+  const mix=arr=>{
+    const nv=arr.filter(x=>x.anc==='Nouvel Adh').sort((a,b)=>b.dt-a.dt);
+    const an=arr.filter(x=>x.anc==='Ancien Adh').sort((a,b)=>a.dt-b.dt);
+    const res=[];let ni=0,ai=0;
+    while(ni<nv.length||ai<an.length){
+      if(ni<nv.length)res.push(nv[ni++]);
+      if(ai<an.length)res.push(an[ai++]);
+      if(ai<an.length)res.push(an[ai++]);
+    }
+    return res;
+  };
+  mix(a1).forEach((x,k)=>{out[x.i].r1=k+1;});
+  mix(a2).forEach((x,k)=>{out[x.i].r2=k+1;});
+  return out;
+}
+
+function Av({name,sz=22}){
+  if(!name||name==='nan')return null;
+  const p=name.trim().split(' ');
+  const i=(p[0]?.[0]||'').toUpperCase()+(p[1]?.[0]||'').toUpperCase();
+  const h=[210,270,160,30,340,190,220,50][name.charCodeAt(0)%8];
+  return <div style={{width:sz,height:sz,borderRadius:'50%',background:`hsl(${h},55%,40%)`,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:sz*.34,fontWeight:700,flexShrink:0}}>{i}</div>;
+}
+
+const COLS=[
+  {k:'adherent', lb:'Adhérent',   w:190},
+  {k:'naf',      lb:'NAF',        w:175},
+  {k:'adhesion', lb:'Adhésion',   w:82, c:1},
+  {k:'medecin',  lb:'Médecin',    w:155},
+  {k:'effectif', lb:'Effectif',   w:62, c:1},
+  {k:'dateFE',   lb:'Date FE',    w:82, c:1},
+  {k:'anciennete',lb:'Anc.',      w:72, c:1},
+  {k:'territoire',lb:'Territoire',w:105},
+  {k:'intervenant',lb:'Intervenant',w:135},
+  {k:'rang2',    lb:'Prio 1-2',   w:72, c:1, hC:'#9D174D',hB:'#FCE7F3'},
+  {k:'rang1',    lb:'Prio >2',    w:72, c:1, hC:'#1D4ED8',hB:'#DBEAFE'},
+  {k:'_act',     lb:'Action',     w:118,c:1},
+];
+const TW=COLS.reduce((s,c)=>s+c.w,0);
+const NAV=['Tableau de bord','Adhérents','Travailleurs','RDVs santé travail','Planning','Interventions','PDP','Demandes','Alertes','Ressources','Eval-Risq','Documents','Statistiques'];
+
+function App(){
+  const [data,setData]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [nav,setNav]=useState('Interventions');
+  const [search,setSearch]=useState('');
+  const [fM,setFM]=useState('all');
+  const [fT,setFT]=useState('all');
+  const [fA,setFA]=useState('all');
+  const [fS,setFS]=useState('all');
+  const [sort,setSort]=useState({k:'rang1',d:'asc'});
+  const sk=sort.k;
+  const sd=sort.d;
+  const [page,setPage]=useState(1);
+  const [showF,setShowF]=useState(false);
+  const [done,setDone]=useState(new Set());
+  const [toast,setToast]=useState(null);
+  const [apiKey,setApiKey]=useState(localStorage.getItem('m5k')||'');
+  const [showK,setShowK]=useState(false);
+  const [navOpen,setNavOpen]=useState(true);
+  const [aiOpen,setAiOpen]=useState(false);
+  const [selRow,setSelRow]=useState(null);
+  const [msgs,setMsgs]=useState([]);
+  const [aiIn,setAiIn]=useState('');
+  const [aiLoad,setAiLoad]=useState(false);
+  const endRef=useRef(null);
+
+  useEffect(()=>{fetch('./data.json').then(r=>r.json()).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'});},[msgs]);
+
+  /* Listes pour les selects — seuls éléments memoizés */
+  const meds=useMemo(()=>[...new Set(data.map(r=>r.medecin).filter(m=>m&&m!=='nan'))].sort(),[data]);
+  const ters =useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=='nan'))].sort(),[data]);
+  const secs =useMemo(()=>[...new Set(data.map(r=>sec(r.nafCode)).filter(Boolean))].sort(),[data]);
+
+  /* ── Tout dans un seul useMemo — aucun risque de boucle ou cache incohérent ── */
+  const result=useMemo(()=>{
+    const sk=sort.k;const sd=sort.d;
+    const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||!!search.trim();
+    // Filtrage
+    let base=data;
+    if(fM!=='all')base=base.filter(r=>r.medecin===fM);
+    if(fT!=='all')base=base.filter(r=>r.territoire===fT);
+    if(fA!=='all')base=base.filter(r=>r.anciennete===fA);
+    if(fS!=='all')base=base.filter(r=>sec(r.nafCode)===fS);
+    if(search.trim()){const q=search.toLowerCase();base=base.filter(r=>(r.adherent||'').toLowerCase().includes(q)||(r.medecin||'').toLowerCase().includes(q)||(r.territoire||'').toLowerCase().includes(q)||(r.naf||'').toLowerCase().includes(q));}
+    // Rangs dynamiques
+    const ranks=anyF?buildRanks(base):null;
+    // Enrichissement
+    const enriched=base.map((row,i)=>({
+      row,
+      r1:ranks?ranks[i].r1:(row.rang1||null),
+      r2:ranks?ranks[i].r2:(row.rang2||null),
+    }));
+    // Tri
+    const dir=sd==='asc'?1:-1;
+    let sorted;
+    if(sk==='rang1'||sk==='rang2'){
+      const key=sk==='rang1'?'r1':'r2';
+      const w=enriched.filter(e=>e[key]>0);
+      const n=enriched.filter(e=>!(e[key]>0));
+      w.sort((a,b)=>(a[key]-b[key])*dir);
+      sorted=[...w,...n];
+    } else {
+      sorted=[...enriched].sort((a,b)=>{
+        const av=a.row[sk]??'',bv=b.row[sk]??'';
+        if(typeof av==='string'&&typeof bv==='string')return av.localeCompare(bv,'fr')*dir;
+        return((Number(av)||0)-(Number(bv)||0))*dir;
+      });
+    }
+    return {sorted,base,anyF};
+  },[data,fM,fT,fA,fS,search,sort]);
+
+  const {sorted,base,anyF}=result;
+  const totalP=Math.max(1,Math.ceil(sorted.length/PAGE));
+  const paged=sorted.slice((page-1)*PAGE,page*PAGE);
+  const nF=(fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
+
+  const doSort=k=>{if(k==='_act')return;setSort(prev=>({k,d:k===prev.k?(prev.d==='asc'?'desc':'asc'):'asc'}));setPage(1);};
+  const reset=()=>{setFM('all');setFT('all');setFA('all');setFS('all');setSearch('');setPage(1);};
+  const mkToast=m=>{setToast(m);setTimeout(()=>setToast(null),3000);};
+  const openAI=row=>{setSelRow(row);setAiOpen(true);setMsgs([{r:'a',c:`${row.adherent} | ${row.naf}\nEffectif : ${row.effectif} • ${row.territoire} • ${row.anciennete}\n\nQue souhaitez-vous analyser ?`}]);};
+  const sendAI=async()=>{
+    if(!aiIn.trim()||aiLoad)return;
+    if(!apiKey){setShowK(true);return;}
+    const h=[...msgs,{r:'u',c:aiIn}];
+    setMsgs(h);setAiIn('');setAiLoad(true);
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,system:`Assistant Medtra5. ${selRow?'Ligne: '+JSON.stringify(selRow):''} Total=${data.length}, filtrés=${sorted.length}. Réponds en français.`,messages:h.map(m=>({role:m.r==='u'?'user':'assistant',content:m.c}))})});
+      const d=await res.json();
+      setMsgs([...h,{r:'a',c:d.content?.[0]?.text||'Erreur.'}]);
+    }catch{setMsgs([...h,{r:'a',c:'Erreur de connexion.'}]);}
+    setAiLoad(false);
+  };
+
+  const renderCell=(entry,col)=>{
+    const {row,r1,r2}=entry;const k=col.k;
+    if(k==='adherent')return<div style={{minWidth:0}}><div style={{fontWeight:600,color:'#1E293B',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.adherent}</div></div>;
+    if(k==='naf')return<div style={{minWidth:0}}><div style={{fontSize:11.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.naf}</div><div style={{fontSize:10,color:'#94A3B8'}}>{row.nafCode}</div></div>;
+    if(k==='adhesion')return<span style={{color:'#64748B',fontSize:11}}>{row.adhesion||'—'}</span>;
+    if(k==='medecin')return<div style={{display:'flex',alignItems:'center',gap:5,minWidth:0}}><Av name={row.medecin} sz={20}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:11}}>{row.medecin}</span></div>;
+    if(k==='effectif')return<span style={{fontWeight:500}}>{row.effectif||'—'}</span>;
+    if(k==='dateFE')return<span style={{color:row.dateFE?'#10B981':'#CBD5E1',fontSize:11}}>{row.dateFE||'—'}</span>;
+    if(k==='anciennete')return<span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:row.anciennete==='Nouvel Adh'?'#EFF6FF':'#F1F5F9',color:row.anciennete==='Nouvel Adh'?'#2563EB':'#64748B',fontWeight:500,whiteSpace:'nowrap'}}>{row.anciennete==='Nouvel Adh'?'Nouveau':'Ancien'}</span>;
+    if(k==='territoire')return<span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{row.territoire||'—'}</span>;
+    if(k==='intervenant')return<div style={{display:'flex',alignItems:'center',gap:5,minWidth:0}}><Av name={row.intervenant} sz={18}/><span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:11,color:'#64748B'}}>{row.intervenant||'—'}</span></div>;
+    if(k==='rang1'){const v=r1;if(!v)return<span style={{color:'#CBD5E1'}}>—</span>;return<span style={{fontWeight:700,color:'#1D4ED8',background:'#DBEAFE',borderRadius:5,padding:'2px 8px',fontSize:11}}>{v}</span>;}
+    if(k==='rang2'){const v=r2;if(!v)return<span style={{color:'#CBD5E1'}}>—</span>;return<span style={{fontWeight:700,color:'#9D174D',background:'#FCE7F3',borderRadius:5,padding:'2px 8px',fontSize:11}}>{v}</span>;}
+    if(k==='_act'){const isDone=done.has(row.id);return<button onClick={e=>{e.stopPropagation();setDone(p=>new Set([...p,row.id]));mkToast(`✓ Créée — ${row.adherent}`);}} style={{padding:'4px 8px',borderRadius:5,border:`1px solid ${isDone?'#86EFAC':'#E2E8F0'}`,background:isDone?'#F0FDF4':'white',color:isDone?'#15803D':'#64748B',fontSize:10.5,cursor:'pointer',whiteSpace:'nowrap'}}>{isDone?'✓ Créée':'Créer l\'intervention'}</button>;}
+    return<span>{String(row[k]||'—')}</span>;
+  };
+
+  return(
+    <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
+      {navOpen&&<div style={{width:188,background:'#0B2040',display:'flex',flexDirection:'column',flexShrink:0}}>
+        <div style={{padding:'13px 14px',borderBottom:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
+          <div style={{width:30,height:30,borderRadius:7,background:'#1D6AF5',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" fill="white"/><path d="M5 21c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="white" strokeWidth="2.2" strokeLinecap="round"/></svg>
+          </div>
+          <div style={{flex:1}}><div style={{color:'#fff',fontWeight:700,fontSize:14}}>medtra<span style={{color:'#60A5FA'}}>5</span></div><div style={{color:'rgba(255,255,255,.3)',fontSize:9,letterSpacing:'.7px',textTransform:'uppercase'}}>Santé au travail</div></div>
+          <button onClick={()=>setNavOpen(false)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,.25)',fontSize:14}}>‹</button>
+        </div>
+        <nav style={{flex:1,padding:'5px 0',overflowY:'auto'}}>
+          {NAV.map(l=><button key={l} className={`ni${l===nav?' on':''}`} onClick={()=>setNav(l)}>{l}</button>)}
+        </nav>
+        <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
+          <Av name="Elise Moreau" sz={26}/>
+          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.7</div></div>
+        </div>
+      </div>}
+
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        <div style={{height:48,background:'#0B2040',display:'flex',alignItems:'center',padding:'0 14px',gap:10,flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
+          {!navOpen&&<button onClick={()=>setNavOpen(true)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,.5)',fontSize:18}}>☰</button>}
+          <div style={{display:'flex',alignItems:'center',gap:7,background:'rgba(255,255,255,.07)',borderRadius:7,padding:'5px 10px',flex:1,maxWidth:340}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Rechercher…" style={{background:'none',border:'none',outline:'none',color:'rgba(255,255,255,.85)',fontSize:12,flex:1}}/>
+            {search&&<button onClick={()=>{setSearch('');setPage(1);}} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,.4)',fontSize:13}}>✕</button>}
+          </div>
+          <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8}}>
+            <button onClick={()=>setShowK(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:15,opacity:.6}}>⚙️</button>
+            <Av name="Elise Moreau" sz={27}/>
+          </div>
+        </div>
+
+        {showK&&<div style={{background:'#1E3A5F',padding:'8px 14px',display:'flex',alignItems:'center',gap:8,borderBottom:'1px solid rgba(255,255,255,.1)',flexShrink:0}}>
+          <span style={{color:'rgba(255,255,255,.7)',fontSize:12,whiteSpace:'nowrap'}}>🔑 Clé API :</span>
+          <input id="ki" defaultValue={apiKey} type="password" placeholder="sk-ant-..." style={{flex:1,background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.2)',borderRadius:6,padding:'4px 10px',color:'white',fontSize:12,outline:'none'}}/>
+          <button onClick={()=>{const k=document.getElementById('ki').value;setApiKey(k);localStorage.setItem('m5k',k);setShowK(false);mkToast('✓ Clé enregistrée');}} style={{padding:'4px 12px',background:'#1D6AF5',border:'none',borderRadius:6,color:'white',cursor:'pointer',fontSize:12,fontWeight:600}}>OK</button>
+          <button onClick={()=>setShowK(false)} style={{background:'none',border:'none',color:'rgba(255,255,255,.4)',cursor:'pointer',fontSize:16}}>✕</button>
+        </div>}
+
+        <div style={{flex:1,overflow:'auto',padding:12}}>
+          <div style={{background:'white',borderRadius:10,border:'1px solid #E2E8F0',overflow:'hidden'}}>
+
+            <div style={{display:'flex',alignItems:'center',padding:'9px 14px',borderBottom:'1px solid #F1F5F9',gap:8,flexWrap:'wrap'}}>
+              <button onClick={()=>setShowF(v=>!v)} style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:6,border:`1px solid ${showF||nF?'#BFDBFE':'#E2E8F0'}`,background:showF||nF?'#EFF6FF':'white',color:showF||nF?'#2563EB':'#64748B',cursor:'pointer',fontSize:12,fontWeight:500}}>
+                ⚙ Filtres {nF>0&&<span style={{background:'#3B82F6',color:'white',borderRadius:'50%',width:15,height:15,fontSize:9,display:'inline-flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>{nF}</span>}
+              </button>
+              <span style={{fontSize:12,color:'#94A3B8'}}><b style={{color:'#374151'}}>{sorted.length.toLocaleString()}</b> / {data.length.toLocaleString()} interventions</span>
+              <div style={{marginLeft:'auto'}}>
+                <button onClick={()=>{setSelRow(null);setAiOpen(true);setMsgs([{r:'a',c:'Bonjour ! Posez vos questions sur les interventions.'}]);}} style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',borderRadius:7,background:'#1D6AF5',border:'none',color:'white',cursor:'pointer',fontSize:12,fontWeight:600}}>✨ Assistant IA</button>
+              </div>
+            </div>
+
+            {showF&&<div style={{display:'flex',gap:8,padding:'8px 14px',borderBottom:'1px solid #F1F5F9',background:'#FAFBFC',flexWrap:'wrap',alignItems:'center'}}>
+              <select value={fT} onChange={e=>{setFT(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fT!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fT!=='all'?'#EFF6FF':'white',color:fT!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fT!=='all'?600:400}}>
+                <option value="all">Tous territoires</option>
+                {ters.map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+              <select value={fM} onChange={e=>{setFM(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fM!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fM!=='all'?'#EFF6FF':'white',color:fM!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fM!=='all'?600:400}}>
+                <option value="all">Tous médecins</option>
+                {meds.map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+              <select value={fA} onChange={e=>{setFA(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fA!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fA!=='all'?'#EFF6FF':'white',color:fA!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fA!=='all'?600:400}}>
+                <option value="all">Toute ancienneté</option>
+                <option value="Nouvel Adh">Nouvel adhérent</option>
+                <option value="Ancien Adh">Ancien adhérent</option>
+              </select>
+              <select value={fS} onChange={e=>{setFS(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fS!=='all'?'#A78BFA':'#E2E8F0'}`,fontSize:12,background:fS!=='all'?'#EDE9FE':'white',color:fS!=='all'?'#5B21B6':'#475569',outline:'none',fontWeight:fS!=='all'?600:400}}>
+                <option value="all">Tous secteurs</option>
+                {secs.map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+              {nF>0&&<button onClick={reset} style={{padding:'4px 10px',borderRadius:6,border:'1px solid #FECACA',fontSize:12,color:'#DC2626',background:'#FEF2F2',cursor:'pointer'}}>✕ Réinitialiser</button>}
+            </div>}
+
+            <div style={{overflowX:'auto',overflowY:'auto',maxHeight:'calc(100vh - 210px)'}}>
+              <div style={{minWidth:TW+'px'}}>
+                <div style={{display:'flex',background:'#F8FAFC',borderBottom:'2px solid #E2E8F0',position:'sticky',top:0,zIndex:10}}>
+                  {COLS.map(col=>(
+                    <div key={col.k} className="th" onClick={()=>doSort(col.k)} style={{width:col.w,justifyContent:col.c?'center':'flex-start',color:col.hC,background:col.hB}}>
+                      {col.lb}{col.k!=='_act'&&<span style={{marginLeft:2,opacity:sk===col.k?.8:.15}}>{sk===col.k?(sd==='asc'?'↑':'↓'):'↕'}</span>}
+                    </div>
+                  ))}
+                </div>
+                {loading?<div style={{padding:50,textAlign:'center',color:'#94A3B8'}}>Chargement…</div>
+                :paged.length===0?<div style={{padding:40,textAlign:'center',color:'#94A3B8'}}>Aucun résultat</div>
+                :paged.map((entry,idx)=>(
+                  <div key={sk+'-'+entry.row.id} className="row" onClick={()=>openAI(entry.row)} style={{background:idx%2===0?'white':'#FAFBFC'}}>
+                    {COLS.map(col=>(
+                      <div key={col.k} className="td" style={{width:col.w,justifyContent:col.c?'center':'flex-start'}} onClick={col.k==='_act'?e=>e.stopPropagation():undefined}>
+                        {renderCell(entry,col)}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {totalP>1&&<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 14px',borderTop:'1px solid #F1F5F9',background:'#FAFBFC'}}>
+              <span style={{fontSize:12,color:'#94A3B8'}}>Page {page} / {totalP} — {sorted.length.toLocaleString()} résultats</span>
+              <div style={{display:'flex',gap:4}}>
+                {[['«',()=>setPage(1),page===1],['‹',()=>setPage(p=>Math.max(1,p-1)),page===1],['›',()=>setPage(p=>Math.min(totalP,p+1)),page===totalP],['»',()=>setPage(totalP),page===totalP]].map(([l,a,d])=>(
+                  <button key={l} onClick={a} disabled={d} style={{padding:'4px 9px',borderRadius:5,border:'1px solid #E2E8F0',background:d?'#F8FAFC':'white',color:d?'#CBD5E1':'#475569',cursor:d?'default':'pointer',fontSize:13}}>{l}</button>
+                ))}
+                {[...Array(Math.min(5,totalP))].map((_,i)=>{const p=Math.max(1,Math.min(totalP-4,page-2))+i;if(p<1||p>totalP)return null;return<button key={p} onClick={()=>setPage(p)} style={{padding:'4px 8px',borderRadius:5,border:'1px solid',borderColor:p===page?'#3B82F6':'#E2E8F0',background:p===page?'#3B82F6':'white',color:p===page?'white':'#475569',cursor:'pointer',fontSize:12,fontWeight:p===page?600:400}}>{p}</button>;})}
+              </div>
+            </div>}
+          </div>
+        </div>
+      </div>
+
+      {aiOpen&&<div style={{width:300,background:'white',borderLeft:'1px solid #E2E8F0',display:'flex',flexDirection:'column',flexShrink:0}}>
+        <div style={{padding:'11px 14px',background:'#1D6AF5',display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:16}}>✨</span>
+          <div style={{flex:1,minWidth:0}}><div style={{color:'white',fontWeight:700,fontSize:13}}>Assistant IA</div>{selRow&&<div style={{color:'rgba(255,255,255,.65)',fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{selRow.adherent}</div>}</div>
+          <button onClick={()=>setAiOpen(false)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,.7)',fontSize:18,lineHeight:1}}>✕</button>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:11,display:'flex',flexDirection:'column',gap:8}}>
+          {!apiKey&&<div style={{background:'#FEF3C7',border:'1px solid #FDE68A',borderRadius:8,padding:'8px 10px',fontSize:11,color:'#92400E'}}>⚠️ Configurez la clé API via ⚙️</div>}
+          {msgs.map((m,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:m.r==='u'?'flex-end':'flex-start'}}>
+              <div style={{maxWidth:'90%',padding:'8px 11px',borderRadius:10,background:m.r==='u'?'#1D6AF5':'#F1F5F9',color:m.r==='u'?'white':'#374151',fontSize:12,lineHeight:1.6,whiteSpace:'pre-wrap',borderBottomRightRadius:m.r==='u'?3:10,borderBottomLeftRadius:m.r==='a'?3:10}}>{m.c}</div>
+            </div>
+          ))}
+          {aiLoad&&<div style={{padding:'8px 12px',borderRadius:10,background:'#F1F5F9',fontSize:12,color:'#94A3B8',alignSelf:'flex-start'}}>En réflexion…</div>}
+          <div ref={endRef}/>
+        </div>
+        <div style={{padding:'9px 11px',borderTop:'1px solid #F1F5F9'}}>
+          <div style={{display:'flex',gap:6,alignItems:'flex-end',background:'#F8FAFC',borderRadius:10,padding:'7px 10px',border:'1px solid #E2E8F0'}}>
+            <textarea value={aiIn} onChange={e=>setAiIn(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAI();}}} placeholder="Votre question…" rows={1} style={{flex:1,background:'none',border:'none',outline:'none',fontSize:12,color:'#374151',resize:'none',fontFamily:'inherit',lineHeight:1.5}}/>
+            <button onClick={sendAI} disabled={aiLoad||!aiIn.trim()} style={{width:27,height:27,borderRadius:6,background:aiIn.trim()?'#1D6AF5':'#E2E8F0',border:'none',cursor:aiIn.trim()?'pointer':'default',color:'white',fontSize:13,flexShrink:0}}>➤</button>
+          </div>
+        </div>
+      </div>}
+
+      {toast&&<div style={{position:'fixed',bottom:20,left:'50%',transform:'translateX(-50%)',background:'#1E293B',color:'white',padding:'10px 18px',borderRadius:8,fontSize:13,fontWeight:500,zIndex:1000,whiteSpace:'nowrap'}}>{toast}</div>}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
