@@ -95,7 +95,7 @@ function App(){
   const [fT,setFT]=useState('all');
   const [fA,setFA]=useState('all');
   const [fS,setFS]=useState('all');
-  const [sort,setSort]=useState({k:'rang1',d:'asc'});
+  const [sort,setSort]=useState({k:'rang1',d:'asc',v:0});
   const sk=sort.k;
   const sd=sort.d;
   const [page,setPage]=useState(1);
@@ -163,7 +163,7 @@ function App(){
   const paged=sorted.slice((page-1)*PAGE,page*PAGE);
   const nF=(fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
 
-  const doSort=k=>{if(k==='_act')return;setSort(prev=>({k,d:k===prev.k?(prev.d==='asc'?'desc':'asc'):'asc'}));setPage(1);};
+  const doSort=k=>{if(k==='_act')return;setSort(prev=>({k,d:k===prev.k?(prev.d==='asc'?'desc':'asc'):'asc',v:prev.v+1}));setPage(1);};
   const reset=()=>{setFM('all');setFT('all');setFA('all');setFS('all');setSearch('');setPage(1);};
   const mkToast=m=>{setToast(m);setTimeout(()=>setToast(null),3000);};
   const openAI=row=>{setSelRow(row);setAiOpen(true);setMsgs([{r:'a',c:`${row.adherent} | ${row.naf}\nEffectif : ${row.effectif} • ${row.territoire} • ${row.anciennete}\n\nQue souhaitez-vous analyser ?`}]);};
@@ -212,7 +212,7 @@ function App(){
         </nav>
         <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
           <Av name="Elise Moreau" sz={26}/>
-          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.7</div></div>
+          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.8</div></div>
         </div>
       </div>}
 
@@ -282,8 +282,9 @@ function App(){
                 </div>
                 {loading?<div style={{padding:50,textAlign:'center',color:'#94A3B8'}}>Chargement…</div>
                 :paged.length===0?<div style={{padding:40,textAlign:'center',color:'#94A3B8'}}>Aucun résultat</div>
-                :paged.map((entry,idx)=>(
-                  <div key={sk+'-'+entry.row.id} className="row" onClick={()=>openAI(entry.row)} style={{background:idx%2===0?'white':'#FAFBFC'}}>
+                :<div key={sort.v}>
+                {paged.map((entry,idx)=>(
+                  <div key={entry.row.id} className="row" onClick={()=>openAI(entry.row)} style={{background:idx%2===0?'white':'#FAFBFC'}}>
                     {COLS.map(col=>(
                       <div key={col.k} className="td" style={{width:col.w,justifyContent:col.c?'center':'flex-start'}} onClick={col.k==='_act'?e=>e.stopPropagation():undefined}>
                         {renderCell(entry,col)}
@@ -291,6 +292,7 @@ function App(){
                     ))}
                   </div>
                 ))}
+                </div>}
               </div>
             </div>
 
