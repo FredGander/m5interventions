@@ -95,8 +95,9 @@ function App(){
   const [fT,setFT]=useState('all');
   const [fA,setFA]=useState('all');
   const [fS,setFS]=useState('all');
-  const [sk,setSk]=useState('rang1');
-  const [sd,setSd]=useState('asc');
+  const [sort,setSort]=useState({k:'rang1',d:'asc'});
+  const sk=sort.k;
+  const sd=sort.d;
   const [page,setPage]=useState(1);
   const [showF,setShowF]=useState(false);
   const [done,setDone]=useState(new Set());
@@ -121,6 +122,7 @@ function App(){
 
   /* ── Tout dans un seul useMemo — aucun risque de boucle ou cache incohérent ── */
   const result=useMemo(()=>{
+    const sk=sort.k;const sd=sort.d;
     const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||!!search.trim();
     // Filtrage
     let base=data;
@@ -154,14 +156,14 @@ function App(){
       });
     }
     return {sorted,base,anyF};
-  },[data,fM,fT,fA,fS,search,sk,sd]);
+  },[data,fM,fT,fA,fS,search,sort]);
 
   const {sorted,base,anyF}=result;
   const totalP=Math.max(1,Math.ceil(sorted.length/PAGE));
   const paged=sorted.slice((page-1)*PAGE,page*PAGE);
   const nF=(fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
 
-  const doSort=k=>{if(k==='_act')return;const newSd=k===sk?(sd==='asc'?'desc':'asc'):'asc';setSk(k);setSd(newSd);setPage(1);};
+  const doSort=k=>{if(k==='_act')return;setSort(prev=>({k,d:k===prev.k?(prev.d==='asc'?'desc':'asc'):'asc'}));setPage(1);};
   const reset=()=>{setFM('all');setFT('all');setFA('all');setFS('all');setSearch('');setPage(1);};
   const mkToast=m=>{setToast(m);setTimeout(()=>setToast(null),3000);};
   const openAI=row=>{setSelRow(row);setAiOpen(true);setMsgs([{r:'a',c:`${row.adherent} | ${row.naf}\nEffectif : ${row.effectif} • ${row.territoire} • ${row.anciennete}\n\nQue souhaitez-vous analyser ?`}]);};
@@ -210,7 +212,7 @@ function App(){
         </nav>
         <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
           <Av name="Elise Moreau" sz={26}/>
-          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.6</div></div>
+          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.7</div></div>
         </div>
       </div>}
 
