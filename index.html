@@ -119,45 +119,44 @@ function App(){
   const ters =useMemo(()=>[...new Set(data.map(r=>r.territoire).filter(t=>t&&t!=='nan'))].sort(),[data]);
   const secs =useMemo(()=>[...new Set(data.map(r=>sec(r.nafCode)).filter(Boolean))].sort(),[data]);
 
-  /* ── Filtrage memoizé (référence stable) ── */
-  const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||!!search.trim();
-  const base=useMemo(()=>{
-    let d=data;
-    if(fM!=='all')d=d.filter(r=>r.medecin===fM);
-    if(fT!=='all')d=d.filter(r=>r.territoire===fT);
-    if(fA!=='all')d=d.filter(r=>r.anciennete===fA);
-    if(fS!=='all')d=d.filter(r=>sec(r.nafCode)===fS);
-    if(search.trim()){const q=search.toLowerCase();d=d.filter(r=>(r.adherent||'').toLowerCase().includes(q)||(r.medecin||'').toLowerCase().includes(q)||(r.territoire||'').toLowerCase().includes(q)||(r.naf||'').toLowerCase().includes(q));}
-    return d;
-  },[data,fM,fT,fA,fS,search]);
-
-  /* ── Rangs ── */
-  const ranks=useMemo(()=>anyF?buildRanks(base):null,[base,anyF]);
-
-  /* ── Enrichissement ── */
-  const enriched=useMemo(()=>base.map((row,i)=>({
-    row,
-    r1:ranks?ranks[i].r1:(row.rang1||null),
-    r2:ranks?ranks[i].r2:(row.rang2||null),
-  })),[base,ranks]);
-
-  /* ── Tri ── */
-  const dir=sd==='asc'?1:-1;
-  const sorted=useMemo(()=>{
+  /* ── Tout dans un seul useMemo — aucun risque de boucle ou cache incohérent ── */
+  const result=useMemo(()=>{
+    const anyF=fM!=='all'||fT!=='all'||fA!=='all'||fS!=='all'||!!search.trim();
+    // Filtrage
+    let base=data;
+    if(fM!=='all')base=base.filter(r=>r.medecin===fM);
+    if(fT!=='all')base=base.filter(r=>r.territoire===fT);
+    if(fA!=='all')base=base.filter(r=>r.anciennete===fA);
+    if(fS!=='all')base=base.filter(r=>sec(r.nafCode)===fS);
+    if(search.trim()){const q=search.toLowerCase();base=base.filter(r=>(r.adherent||'').toLowerCase().includes(q)||(r.medecin||'').toLowerCase().includes(q)||(r.territoire||'').toLowerCase().includes(q)||(r.naf||'').toLowerCase().includes(q));}
+    // Rangs dynamiques
+    const ranks=anyF?buildRanks(base):null;
+    // Enrichissement
+    const enriched=base.map((row,i)=>({
+      row,
+      r1:ranks?ranks[i].r1:(row.rang1||null),
+      r2:ranks?ranks[i].r2:(row.rang2||null),
+    }));
+    // Tri
+    const dir=sd==='asc'?1:-1;
+    let sorted;
     if(sk==='rang1'||sk==='rang2'){
       const key=sk==='rang1'?'r1':'r2';
-      const withRank=enriched.filter(e=>e[key]>0);
-      const noRank=enriched.filter(e=>!(e[key]>0));
-      withRank.sort((a,b)=>(a[key]-b[key])*dir);
-      return [...withRank,...noRank];
+      const w=enriched.filter(e=>e[key]>0);
+      const n=enriched.filter(e=>!(e[key]>0));
+      w.sort((a,b)=>(a[key]-b[key])*dir);
+      sorted=[...w,...n];
+    } else {
+      sorted=[...enriched].sort((a,b)=>{
+        const av=a.row[sk]??'',bv=b.row[sk]??'';
+        if(typeof av==='string'&&typeof bv==='string')return av.localeCompare(bv,'fr')*dir;
+        return((Number(av)||0)-(Number(bv)||0))*dir;
+      });
     }
-    return [...enriched].sort((a,b)=>{
-      const av=a.row[sk]??'',bv=b.row[sk]??'';
-      if(typeof av==='string'&&typeof bv==='string')return av.localeCompare(bv,'fr')*dir;
-      return((Number(av)||0)-(Number(bv)||0))*dir;
-    });
-  },[enriched,sk,dir]);
+    return {sorted,base,anyF};
+  },[data,fM,fT,fA,fS,search,sk,sd]);
 
+  const {sorted,base,anyF}=result;
   const totalP=Math.max(1,Math.ceil(sorted.length/PAGE));
   const paged=sorted.slice((page-1)*PAGE,page*PAGE);
   const nF=(fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
@@ -211,7 +210,7 @@ function App(){
         </nav>
         <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
           <Av name="Elise Moreau" sz={26}/>
-          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.3</div></div>
+          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.4</div></div>
         </div>
       </div>}
 
