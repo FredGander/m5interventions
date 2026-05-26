@@ -161,8 +161,12 @@ function App(){
   const paged=sorted.slice((page-1)*PAGE,page*PAGE);
   const nF=(fM!=='all'?1:0)+(fT!=='all'?1:0)+(fA!=='all'?1:0)+(fS!=='all'?1:0)+(search?1:0);
 
-  const doSort=k=>{if(k==='_act')return;setSd(k===sk?(sd==='asc'?'desc':'asc'):'asc');setSk(k);setPage(1);};
-  const reset=()=>{setFM('all');setFT('all');setFA('all');setFS('all');setSearch('');setPage(1);};
+  const doSort=k=>{
+    if(k==='_act')return;
+    const newSd=k===sk?(sd==='asc'?'desc':'asc'):'asc';
+    React.startTransition(()=>{setSk(k);setSd(newSd);setPage(1);});
+  };
+  const reset=()=>{React.startTransition(()=>{setFM('all');setFT('all');setFA('all');setFS('all');setSearch('');setPage(1);});};
   const mkToast=m=>{setToast(m);setTimeout(()=>setToast(null),3000);};
   const openAI=row=>{setSelRow(row);setAiOpen(true);setMsgs([{r:'a',c:`${row.adherent} | ${row.naf}\nEffectif : ${row.effectif} • ${row.territoire} • ${row.anciennete}\n\nQue souhaitez-vous analyser ?`}]);};
   const sendAI=async()=>{
@@ -210,7 +214,7 @@ function App(){
         </nav>
         <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.06)',display:'flex',alignItems:'center',gap:8}}>
           <Av name="Elise Moreau" sz={26}/>
-          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.4</div></div>
+          <div><div style={{color:'#fff',fontSize:11,fontWeight:600}}>Élise Moreau</div><div style={{color:'rgba(255,255,255,.35)',fontSize:10}}>Médecin · v2.5</div></div>
         </div>
       </div>}
 
@@ -219,7 +223,7 @@ function App(){
           {!navOpen&&<button onClick={()=>setNavOpen(true)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,.5)',fontSize:18}}>☰</button>}
           <div style={{display:'flex',alignItems:'center',gap:7,background:'rgba(255,255,255,.07)',borderRadius:7,padding:'5px 10px',flex:1,maxWidth:340}}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Rechercher…" style={{background:'none',border:'none',outline:'none',color:'rgba(255,255,255,.85)',fontSize:12,flex:1}}/>
+            <input value={search} onChange={e=>{const v=e.target.value;React.startTransition(()=>{setSearch(v);setPage(1);});}} placeholder="Rechercher…" style={{background:'none',border:'none',outline:'none',color:'rgba(255,255,255,.85)',fontSize:12,flex:1}}/>
             {search&&<button onClick={()=>{setSearch('');setPage(1);}} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,.4)',fontSize:13}}>✕</button>}
           </div>
           <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8}}>
@@ -257,20 +261,20 @@ function App(){
             </div>
 
             {showF&&<div style={{display:'flex',gap:8,padding:'8px 14px',borderBottom:'1px solid #F1F5F9',background:'#FAFBFC',flexWrap:'wrap',alignItems:'center'}}>
-              <select value={fT} onChange={e=>{setFT(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fT!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fT!=='all'?'#EFF6FF':'white',color:fT!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fT!=='all'?600:400}}>
+              <select value={fT} onChange={e=>{const v=e.target.value;React.startTransition(()=>{setFT(v);setPage(1);});}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fT!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fT!=='all'?'#EFF6FF':'white',color:fT!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fT!=='all'?600:400}}>
                 <option value="all">Tous territoires</option>
                 {ters.map(o=><option key={o} value={o}>{o}</option>)}
               </select>
-              <select value={fM} onChange={e=>{setFM(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fM!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fM!=='all'?'#EFF6FF':'white',color:fM!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fM!=='all'?600:400}}>
+              <select value={fM} onChange={e=>{const v=e.target.value;React.startTransition(()=>{setFM(v);setPage(1);});}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fM!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fM!=='all'?'#EFF6FF':'white',color:fM!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fM!=='all'?600:400}}>
                 <option value="all">Tous médecins</option>
                 {meds.map(o=><option key={o} value={o}>{o}</option>)}
               </select>
-              <select value={fA} onChange={e=>{setFA(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fA!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fA!=='all'?'#EFF6FF':'white',color:fA!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fA!=='all'?600:400}}>
+              <select value={fA} onChange={e=>{const v=e.target.value;React.startTransition(()=>{setFA(v);setPage(1);});}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fA!=='all'?'#BFDBFE':'#E2E8F0'}`,fontSize:12,background:fA!=='all'?'#EFF6FF':'white',color:fA!=='all'?'#1D4ED8':'#475569',outline:'none',fontWeight:fA!=='all'?600:400}}>
                 <option value="all">Toute ancienneté</option>
                 <option value="Nouvel Adh">Nouvel adhérent</option>
                 <option value="Ancien Adh">Ancien adhérent</option>
               </select>
-              <select value={fS} onChange={e=>{setFS(e.target.value);setPage(1);}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fS!=='all'?'#A78BFA':'#E2E8F0'}`,fontSize:12,background:fS!=='all'?'#EDE9FE':'white',color:fS!=='all'?'#5B21B6':'#475569',outline:'none',fontWeight:fS!=='all'?600:400}}>
+              <select value={fS} onChange={e=>{const v=e.target.value;React.startTransition(()=>{setFS(v);setPage(1);});}} style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${fS!=='all'?'#A78BFA':'#E2E8F0'}`,fontSize:12,background:fS!=='all'?'#EDE9FE':'white',color:fS!=='all'?'#5B21B6':'#475569',outline:'none',fontWeight:fS!=='all'?600:400}}>
                 <option value="all">Tous secteurs</option>
                 {secs.map(o=><option key={o} value={o}>{o}</option>)}
               </select>
